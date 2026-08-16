@@ -234,7 +234,7 @@ export function buildTrack( scene, models, customCells ) {
 				if ( ! child.isMesh ) return;
 
 				const inst = new THREE.InstancedMesh( child.geometry, child.material, count );
-				inst.castShadow = true;
+				inst.castShadow = false;
 				inst.receiveShadow = true;
 
 				for ( let i = 0; i < count; i ++ ) {
@@ -266,7 +266,7 @@ export function buildTrack( scene, models, customCells ) {
 
 	trackGroup.updateMatrixWorld( true );
 
-	trackGroup.traverse( ( child ) => {
+	trackPieceGroup.traverse( ( child ) => {
 
 		if ( child.isMesh ) {
 
@@ -310,7 +310,22 @@ export function placePiece( models, key, gx, gz, orient ) {
 	const src = models[ key ];
 	if ( ! src ) return null;
 
-	const piece = src.clone();
+	let piece;
+	if ( key === 'track-bump' && models[ 'track-straight' ] ) {
+
+		piece = new THREE.Group();
+		const baseStraight = models[ 'track-straight' ].clone();
+		piece.add( baseStraight );
+		const bumpMesh = src.clone();
+		bumpMesh.position.y = 0.02; // elevate slightly above straight to avoid z-fighting
+		piece.add( bumpMesh );
+
+	} else {
+
+		piece = src.clone();
+
+	}
+
 	piece.position.set( ( gx + 0.5 ) * CELL_RAW, 0.5, ( gz + 0.5 ) * CELL_RAW );
 
 	const deg = ORIENT_DEG[ orient ] ?? 0;

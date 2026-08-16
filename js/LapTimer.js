@@ -43,9 +43,10 @@ function formatTime( t ) {
 
 export class LapTimer {
 
-	constructor( cells, trackId ) {
+	constructor( cells, trackId, onLapComplete = null ) {
 
 		this.storageKey = STORAGE_PREFIX + ( trackId || 'default' );
+		this.onLapComplete = onLapComplete;
 		this.lap = 1;
 		this.bestLap = loadBest( this.storageKey );
 		this.lastLap = null;
@@ -86,32 +87,42 @@ export class LapTimer {
 
 	buildUI() {
 
-		const style = document.createElement( 'style' );
-		style.textContent = `
-			#lap-timer {
-				position: absolute;
-				top: 12px;
-				left: 12px;
-				color: #fff;
-				font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-				background: rgba(0,0,0,0.5);
-				padding: 10px 14px;
-				border-radius: 10px;
-				line-height: 1.4;
-				text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-				user-select: none;
-				pointer-events: none;
-				z-index: 10;
-				min-width: 140px;
-				backdrop-filter: blur(8px);
-				-webkit-backdrop-filter: blur(8px);
-			}
-			#lap-timer .row { display: flex; justify-content: space-between; gap: 12px; }
-			#lap-timer .label { opacity: 0.65; font-weight: 500; letter-spacing: 0.06em; }
-			#lap-timer .current { font: 700 24px/1.1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-variant-numeric: tabular-nums; margin: 4px 0 6px; }
-			#lap-timer .stat { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.9; }
-		`;
-		document.head.appendChild( style );
+		if ( ! document.getElementById( 'lap-timer-styles' ) ) {
+
+			const style = document.createElement( 'style' );
+			style.id = 'lap-timer-styles';
+			style.textContent = `
+				#lap-timer {
+					position: absolute;
+					top: 64px;
+					left: 16px;
+					color: #fff;
+					font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+					background: rgba(14, 20, 32, 0.85);
+					padding: 10px 14px;
+					border-radius: 12px;
+					line-height: 1.4;
+					text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+					user-select: none;
+					pointer-events: none;
+					z-index: 40;
+					min-width: 140px;
+					backdrop-filter: blur(12px);
+					-webkit-backdrop-filter: blur(12px);
+					border: 1px solid rgba(255, 255, 255, 0.12);
+					box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+				}
+				#lap-timer .row { display: flex; justify-content: space-between; gap: 12px; }
+				#lap-timer .label { opacity: 0.65; font-weight: 500; letter-spacing: 0.06em; }
+				#lap-timer .current { font: 700 24px/1.1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-variant-numeric: tabular-nums; margin: 4px 0 6px; }
+				#lap-timer .stat { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.9; }
+			`;
+			document.head.appendChild( style );
+
+		}
+
+		const existing = document.getElementById( 'lap-timer' );
+		if ( existing ) existing.remove();
 
 		const placeholder = formatTime( null );
 		const el = document.createElement( 'div' );
@@ -123,10 +134,22 @@ export class LapTimer {
 			`<div class="row stat"><span class="label">BEST</span><span class="best">${ formatTime( this.bestLap ) }</span></div>`;
 		document.body.appendChild( el );
 
+		this.el = el;
 		this.lapEl = el.querySelector( '.lap' );
 		this.currentEl = el.querySelector( '.current' );
 		this.lastEl = el.querySelector( '.last' );
 		this.bestEl = el.querySelector( '.best' );
+
+	}
+
+	destroy() {
+
+		if ( this.el ) {
+
+			this.el.remove();
+			this.el = null;
+
+		}
 
 	}
 
@@ -190,6 +213,17 @@ export class LapTimer {
 			[ { color }, { color }, { color: '#fff' } ],
 			{ duration: 1200, easing: 'ease-out' }
 		);
+
+		if ( this.onLapComplete ) {
+
+			this.onLapComplete( {
+				lap: this.lap - 1,
+				lapTime: this.lastLap,
+				isBest,
+				bestLap: this.bestLap,
+			} );
+
+		}
 
 	}
 

@@ -425,4 +425,62 @@ export class GameAudio {
 
 	}
 
+	playFinishFanfare( isBest = false ) {
+
+		if ( ! this.listener || ! this.listener.context ) return;
+
+		try {
+
+			const ctx = this.listener.context;
+			if ( ctx.state === 'suspended' ) ctx.resume();
+
+			const now = ctx.currentTime;
+
+			// Celebratory notes: C5 (523.25), E5 (659.25), G5 (783.99), C6 (1046.5), E6 (1318.5)
+			const notes = isBest
+				? [ 523.25, 659.25, 783.99, 1046.5, 1318.5 ]
+				: [ 523.25, 659.25, 783.99, 1046.5 ];
+
+			const chordGain = ctx.createGain();
+			chordGain.gain.setValueAtTime( 0.001, now );
+			chordGain.gain.linearRampToValueAtTime( isBest ? 0.35 : 0.25, now + 0.05 );
+			chordGain.gain.exponentialRampToValueAtTime( 0.0001, now + ( isBest ? 1.8 : 1.2 ) );
+			chordGain.connect( ctx.destination );
+
+			if ( this.reverbSend ) {
+
+				chordGain.connect( this.reverbSend );
+
+			}
+
+			notes.forEach( ( freq, idx ) => {
+
+				const osc = ctx.createOscillator();
+				osc.type = idx === notes.length - 1 ? 'triangle' : 'sine';
+				osc.frequency.setValueAtTime( freq, now );
+
+				// Arpeggio stagger
+				const noteGain = ctx.createGain();
+				const noteStart = now + idx * 0.09;
+				noteGain.gain.setValueAtTime( 0.0001, noteStart );
+				noteGain.gain.linearRampToValueAtTime( 1.0, noteStart + 0.03 );
+				noteGain.gain.exponentialRampToValueAtTime( 0.0001, noteStart + 0.8 );
+
+				osc.connect( noteGain );
+				noteGain.connect( chordGain );
+
+				osc.start( noteStart );
+				osc.stop( noteStart + 0.9 );
+
+			} );
+
+		} catch ( e ) {
+
+			console.warn( 'Failed to play finish fanfare:', e );
+
+		}
+
+	}
+
 }
+

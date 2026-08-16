@@ -1,7 +1,8 @@
 export class Controls {
 
-	constructor() {
+	constructor( phoneController = null ) {
 
+		this.phoneController = phoneController;
 		this.keys = {};
 		this.x = 0;
 		this.z = 0;
@@ -18,6 +19,12 @@ export class Controls {
 		window.addEventListener( 'keyup', ( e ) => this.keys[ e.code ] = false );
 
 		this.setupTouchUI();
+
+	}
+
+	setPhoneController( phoneController ) {
+
+		this.phoneController = phoneController;
 
 	}
 
@@ -105,20 +112,31 @@ export class Controls {
 
 	}
 
-	update() {
+	update( dt = 1 / 60 ) {
 
 		let x = 0, z = 0;
+		let phoneActive = false;
 
-		// Keyboard
+		// Phone Motion Controller (Gyroscope & Touch Pedals)
+		if ( this.phoneController && this.phoneController.connected ) {
 
-		if ( this.keys[ 'KeyA' ] || this.keys[ 'ArrowLeft' ] ) x -= 1;
-		if ( this.keys[ 'KeyD' ] || this.keys[ 'ArrowRight' ] ) x += 1;
-		if ( this.keys[ 'KeyW' ] || this.keys[ 'ArrowUp' ] ) z += 1;
-		if ( this.keys[ 'KeyS' ] || this.keys[ 'ArrowDown' ] ) z -= 1;
+			this.phoneController.update( dt );
+			x = this.phoneController.getSteering();
+			const gas = this.phoneController.getGas();
+			const brake = this.phoneController.getBrake();
+			z = gas - brake;
+			phoneActive = true;
+
+		}
+
+		// Keyboard (overrides/augments)
+		if ( this.keys[ 'KeyA' ] || this.keys[ 'ArrowLeft' ] ) x = - 1;
+		if ( this.keys[ 'KeyD' ] || this.keys[ 'ArrowRight' ] ) x = 1;
+		if ( this.keys[ 'KeyW' ] || this.keys[ 'ArrowUp' ] ) z = 1;
+		if ( this.keys[ 'KeyS' ] || this.keys[ 'ArrowDown' ] ) z = - 1;
 
 		// Gamepad
-
-		const gamepads = navigator.getGamepads();
+		const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
 
 		for ( const gp of gamepads ) {
 
@@ -136,8 +154,7 @@ export class Controls {
 
 		}
 
-		// Touch — joystick mapped to world space (camera is 45° azimuth)
-
+		// Touch — joystick mapped to world space
 		if ( this.touchActive ) {
 
 			const jx = this.touchDirX;
@@ -156,7 +173,7 @@ export class Controls {
 		this.x = x;
 		this.z = z;
 
-		return { x, z, touchActive: this.touchActive };
+		return { x, z, touchActive: this.touchActive, phoneActive };
 
 	}
 

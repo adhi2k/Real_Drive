@@ -71,8 +71,6 @@ export function buildWallColliders( world, debugGroup, customCells ) {
 
 	for ( const [ gx, gz, key, orient ] of cells ) {
 
-		if ( key === 'track-bump' ) continue;
-
 		const cx = ( gx + 0.5 ) * CELL_RAW * S;
 		const cz = ( gz + 0.5 ) * CELL_RAW * S;
 
@@ -80,7 +78,7 @@ export function buildWallColliders( world, debugGroup, customCells ) {
 		const rad = deg * Math.PI / 180;
 		const cr = Math.cos( rad ), sr = Math.sin( rad );
 
-		if ( key === 'track-straight' || key === 'track-finish' ) {
+		if ( key === 'track-straight' || key === 'track-finish' || key === 'track-bump' ) {
 
 			for ( const side of [ - 1, 1 ] ) {
 

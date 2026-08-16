@@ -1,29 +1,31 @@
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { LightProbeGrid } from 'three/addons/lighting/LightProbeGrid.js';
-import { LightProbeGridHelper } from 'three/addons/helpers/LightProbeGridHelper.js';
 import { createWorldSettings, createWorld, addBroadphaseLayer, addObjectLayer, enableCollision, registerAll, updateWorld, rigidBody, box, MotionType } from 'crashcat';
 import { Vehicle, MAX_SPEED } from './Vehicle.js';
 import { Camera } from './Camera.js';
 import { Controls } from './Controls.js';
-import { buildTrack, decodeCells, computeSpawnPosition, computeTrackBounds } from './Track.js';
+import { buildTrack, decodeCells, computeSpawnPosition, computeTrackBounds, TRACK_CELLS } from './Track.js';
 import { buildWallColliders, createSphereBody } from './Physics.js';
 import { SmokeTrails } from './Particles.js';
 import { DriftMarks } from './DriftMarks.js';
 import { GameAudio } from './Audio.js';
 import { LapTimer } from './LapTimer.js';
 import { ColorMapGLTFLoader } from './Loader.js';
-
+import { PhoneController } from './PhoneController.js';
+import { GameUI } from './UI.js';
+import { PRESET_TRACKS } from './TrackGenerator.js';
 
 const renderer = new THREE.WebGLRenderer( { antialias: true, outputBufferType: THREE.HalfFloatType } );
 renderer.setSize( window.innerWidth, window.innerHeight );
-renderer.setPixelRatio( window.devicePixelRatio );
+renderer.setPixelRatio( 1.0 );
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 
 const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ) );
-bloomPass.strength = 0.02;
+bloomPass.strength = 0.015;
 bloomPass.radius = 0.02;
 bloomPass.threshold = 0.5;
 
@@ -36,22 +38,22 @@ scene.background = new THREE.Color( 0xadb2ba );
 scene.fog = new THREE.Fog( 0xadb2ba, 30, 55 );
 
 const dirLight = new THREE.DirectionalLight( 0xffffff, 3 );
-dirLight.position.set( 11.4, 15, -5.3 );
+dirLight.position.set( 11.4, 15, - 5.3 );
 dirLight.castShadow = true;
-dirLight.shadow.mapSize.setScalar( 4096 );
+dirLight.shadow.mapSize.setScalar( 1024 );
 dirLight.shadow.camera.near = 0.5;
 dirLight.shadow.camera.far = 60;
 dirLight.shadow.radius = 4;
 scene.add( dirLight );
 
 const hemiLight = new THREE.HemisphereLight( 0xc8d8e8, 0x7a8a5a, 2 );
-hemiLight.position.copy( dirLight.position )
+hemiLight.position.copy( dirLight.position );
 scene.add( hemiLight );
-
 
 window.addEventListener( 'resize', () => {
 
 	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setPixelRatio( 1.0 );
 
 } );
 
@@ -84,7 +86,7 @@ async function loadModels() {
 
 				} );
 
-				// Godot imports vehicle models at root_scale=0.5
+				// Vehicle scaling
 				if ( name.startsWith( 'vehicle-' ) ) {
 
 					gltf.scene.scale.setScalar( 0.5 );
@@ -114,31 +116,55 @@ async function loadModels() {
 
 }
 
-async function init() {
+let currentTrackGroup = null;
+let currentProbes = null;
+let world = null;
+let sphereBody = null;
+let vehicle = null;
+let vehicleGroup = null;
+let cam = null;
+let controls = null;
+let phoneController = null;
+let particles = null;
+let driftMarks = null;
+let audio = null;
+let lapTimer = null;
+let ui = null;
 
-	registerAll();
-	await loadModels();
+function setupWorldAndTrack( customCells, mapParam ) {
 
-	const mapParam = new URLSearchParams( window.location.search ).get( 'map' );
-	let customCells = null;
-	let spawn = null;
+	// Clean up previous track group
+	if ( currentTrackGroup ) {
 
-	if ( mapParam ) {
+		scene.remove( currentTrackGroup );
+		currentTrackGroup.traverse( ( obj ) => {
 
-		try {
+			if ( obj.geometry ) obj.geometry.dispose();
 
-			customCells = decodeCells( mapParam );
-			spawn = computeSpawnPosition( customCells );
-
-		} catch ( e ) {
-
-			console.warn( 'Invalid map parameter, using default track' );
-
-		}
+		} );
+		currentTrackGroup = null;
 
 	}
 
-	// Compute track bounds and size physics/shadows to fit
+	// Clean up previous light probes
+	if ( currentProbes ) {
+
+		scene.remove( currentProbes );
+		currentProbes.dispose?.();
+		currentProbes = null;
+
+	}
+
+	// Clean up previous lap timer
+	if ( lapTimer ) {
+
+		lapTimer.destroy();
+		lapTimer = null;
+
+	}
+
+	// Compute spawn & bounds
+	const spawn = customCells ? computeSpawnPosition( customCells ) : null;
 	const bounds = computeTrackBounds( customCells );
 	const hw = bounds.halfWidth;
 	const hd = bounds.halfDepth;
@@ -154,25 +180,28 @@ async function init() {
 	scene.fog.near = groundSize * 0.4;
 	scene.fog.far = groundSize * 0.8;
 
-	buildTrack( scene, models, customCells );
+	// Build Track inside a group
+	const trackContainer = new THREE.Group();
+	buildTrack( trackContainer, models, customCells );
+	scene.add( trackContainer );
+	currentTrackGroup = trackContainer;
 
-	// Probes
-
+	// Probes (lightweight probe baking)
 	const probeHeight = 6;
+	const countX = Math.min( 4, Math.max( 2, Math.round( hw / 6 ) ) );
+	const countZ = Math.min( 4, Math.max( 2, Math.round( hd / 6 ) ) );
 	const probes = new LightProbeGrid(
 		hw * 2, probeHeight, hd * 2,
-		Math.max( 4, Math.round( hw / 4 ) ),
+		countX,
 		2,
-		Math.max( 4, Math.round( hd / 4 ) ),
+		countZ,
 	);
 	probes.position.set( bounds.centerX, probeHeight / 2, bounds.centerZ );
-	probes.bake( renderer, scene, { cubemapSize: 32, near: 0.1, far: groundSize } );
+	probes.bake( renderer, scene, { cubemapSize: 16, near: 0.2, far: groundSize } );
 	scene.add( probes );
+	currentProbes = probes;
 
-	// scene.add( new LightProbeGridHelper( probes, 0.5 ) );
-
-	//
-
+	// Physics World
 	const worldSettings = createWorldSettings();
 	worldSettings.gravity = [ 0, - 9.81, 0 ];
 
@@ -184,7 +213,7 @@ async function init() {
 	enableCollision( worldSettings, OL_MOVING, OL_STATIC );
 	enableCollision( worldSettings, OL_MOVING, OL_MOVING );
 
-	const world = createWorld( worldSettings );
+	world = createWorld( worldSettings );
 	world._OL_MOVING = OL_MOVING;
 	world._OL_STATIC = OL_STATIC;
 
@@ -200,9 +229,18 @@ async function init() {
 		restitution: 0.0,
 	} );
 
-	const sphereBody = createSphereBody( world, spawn ? spawn.position : null );
+	// Sphere Body & Vehicle
+	sphereBody = createSphereBody( world, spawn ? spawn.position : null );
 
-	const vehicle = new Vehicle();
+	if ( ! vehicle ) {
+
+		vehicle = new Vehicle();
+		vehicleGroup = vehicle.init( models[ 'vehicle-truck-yellow' ] );
+		scene.add( vehicleGroup );
+		dirLight.target = vehicleGroup;
+
+	}
+
 	vehicle.rigidBody = sphereBody;
 	vehicle.physicsWorld = world;
 
@@ -211,27 +249,123 @@ async function init() {
 		const [ sx, sy, sz ] = spawn.position;
 		vehicle.spherePos.set( sx, sy, sz );
 		vehicle.prevModelPos.set( sx, 0, sz );
+		vehicle.container.position.set( sx, 0, sz );
 		vehicle.container.rotation.y = spawn.angle;
+		vehicle.linearSpeed = 0;
+		vehicle.modelVelocity.set( 0, 0, 0 );
+
+	} else {
+
+		vehicle.spherePos.set( 3.5, 0.5, 5 );
+		vehicle.prevModelPos.set( 3.5, 0, 5 );
+		vehicle.container.position.set( 3.5, 0, 5 );
+		vehicle.container.rotation.y = 0;
+		vehicle.linearSpeed = 0;
+	}
+
+	// Extract Track Bumps / Jump Ramps
+	const activeCells = customCells || TRACK_CELLS;
+	const bumpList = [];
+	for ( const [ gx, gz, key ] of activeCells ) {
+
+		if ( key === 'track-bump' ) {
+
+			bumpList.push( {
+				x: ( gx + 0.5 ) * 10 * 0.75,
+				z: ( gz + 0.5 ) * 10 * 0.75,
+				radius: 1.85,
+				height: 0.85
+			} );
+
+		}
+
+	}
+	vehicle.setBumps( bumpList );
+
+	// Reset Drift Marks
+	if ( driftMarks ) {
+
+		scene.remove( driftMarks.mesh );
+
+	}
+	driftMarks = new DriftMarks( scene, mapParam );
+
+	// Lap Timer
+	lapTimer = new LapTimer( customCells, mapParam, ( lapData ) => {
+
+		if ( audio ) audio.playFinishFanfare( lapData.isBest );
+		if ( ui ) ui.showLapCelebration( lapData );
+
+	} );
+
+}
+
+async function init() {
+
+	registerAll();
+	await loadModels();
+
+	// Phone Controller (WebRTC Gyroscope & Touch Pedals)
+	phoneController = new PhoneController();
+	phoneController.init();
+
+	// Game UI Overlay
+	ui = new GameUI( {
+		phoneController,
+		onSelectTrack: ( cells, encoded ) => {
+
+			setupWorldAndTrack( cells, encoded );
+
+		},
+		onTogglePerf: ( turboActive ) => {
+
+			if ( turboActive ) {
+
+				renderer.shadowMap.enabled = false;
+				renderer.setEffects( [] );
+
+			} else {
+
+				renderer.shadowMap.enabled = true;
+				renderer.setEffects( [ bloomPass ] );
+
+			}
+
+		}
+	} );
+
+	// Initialize Controls
+	controls = new Controls( phoneController );
+
+	// Camera & Audio & Particles
+	cam = new Camera();
+	scene.add( cam.debug );
+
+	particles = new SmokeTrails( scene );
+
+	// Load initial track from URL or default
+	const mapParam = new URLSearchParams( window.location.search ).get( 'map' );
+	let customCells = null;
+
+	if ( mapParam ) {
+
+		try {
+
+			customCells = decodeCells( mapParam );
+
+		} catch ( e ) {
+
+			console.warn( 'Invalid map parameter, using default track' );
+
+		}
 
 	}
 
-	const vehicleGroup = vehicle.init( models[ 'vehicle-truck-yellow' ] );
-	scene.add( vehicleGroup );
+	setupWorldAndTrack( customCells, mapParam );
 
-	dirLight.target = vehicleGroup;
-
-	const cam = new Camera();
-	scene.add( cam.debug );
-
-	const controls = new Controls();
-
-	const particles = new SmokeTrails( scene );
-	const driftMarks = new DriftMarks( scene, mapParam );
-
-	const audio = new GameAudio();
+	// Audio
+	audio = new GameAudio();
 	audio.init( cam.camera, vehicleGroup );
-
-	const lapTimer = new LapTimer( customCells, mapParam );
 
 	const _forward = new THREE.Vector3();
 	const _camLead = new THREE.Vector3();
@@ -248,6 +382,13 @@ async function init() {
 			const impactVelocity = Math.abs( vehicle.modelVelocity.dot( _forward ) );
 			audio.playImpact( impactVelocity );
 
+			// Haptic vibration feedback to phone on crash
+			if ( phoneController ) {
+
+				phoneController.vibratePhone( Math.min( 100, Math.max( 25, Math.round( impactVelocity * 18 ) ) ) );
+
+			}
+
 		}
 	};
 
@@ -260,7 +401,7 @@ async function init() {
 		timer.update();
 		const dt = Math.min( timer.getDelta(), 1 / 30 );
 
-		const input = controls.update();
+		const input = controls.update( dt );
 
 		updateWorld( world, contactListener, dt );
 
@@ -279,8 +420,10 @@ async function init() {
 		driftMarks.update( dt, vehicle );
 		audio.update( dt, vehicle.linearSpeed / MAX_SPEED, input.z, vehicle.driftIntensity );
 
-		const hasInput = input.touchActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
+		const hasInput = input.touchActive || input.phoneActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
+
+		if ( ui ) ui.updateFPS( dt );
 
 		renderer.render( scene, cam.camera );
 

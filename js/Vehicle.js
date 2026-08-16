@@ -52,6 +52,14 @@ export class Vehicle {
 		this.inputZ = 0;
 
 		this.driftIntensity = 0;
+		this.bumps = [];
+		this.lastBumpTime = 0;
+
+	}
+
+	setBumps( bumps ) {
+
+		this.bumps = bumps || [];
 
 	}
 
@@ -174,6 +182,59 @@ export class Vehicle {
 				angvel[ 1 ],
 				angvel[ 2 ] + _right.z * drive
 			] );
+
+			// Bump Mound / Jump Crest Physics
+			if ( this.bumps && this.bumps.length > 0 ) {
+
+				const carX = this.spherePos.x;
+				const carZ = this.spherePos.z;
+				const speed = Math.abs( this.linearSpeed );
+
+				for ( const bump of this.bumps ) {
+
+					const dx = carX - bump.x;
+					const dz = carZ - bump.z;
+					const distSq = dx * dx + dz * dz;
+					const r = bump.radius;
+
+					if ( distSq < r * r ) {
+
+						const dist = Math.sqrt( distSq );
+						const factor = Math.cos( ( dist / r ) * ( Math.PI * 0.5 ) );
+						const targetY = 0.5 + bump.height * factor;
+						const vel = this.rigidBody.motionProperties.linearVelocity;
+
+						if ( speed > 0.18 && vel[ 1 ] < 1.2 ) {
+
+							const jumpForce = Math.min( 7.5, Math.max( 3.4, speed * 6.2 ) ) * factor;
+							rigidBody.setLinearVelocity( this.physicsWorld, this.rigidBody, [
+								vel[ 0 ],
+								jumpForce,
+								vel[ 2 ]
+							] );
+
+							if ( this.bodyNode ) {
+
+								this.bodyNode.rotation.x = - 0.45 * factor;
+
+							}
+
+						} else if ( this.spherePos.y < targetY ) {
+
+							this.spherePos.y = THREE.MathUtils.lerp( this.spherePos.y, targetY, dt * 15 );
+							rigidBody.setPosition( this.physicsWorld, this.rigidBody, [
+								this.spherePos.x,
+								this.spherePos.y,
+								this.spherePos.z
+							], false );
+
+						}
+
+					}
+
+				}
+
+			}
 
 			const pos = this.rigidBody.position;
 			this.spherePos.set( pos[ 0 ], pos[ 1 ], pos[ 2 ] );

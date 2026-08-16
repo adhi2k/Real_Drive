@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>RealDrive • Mobile Motion Controller</title>
+	<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+	<style>
+		* {
+			box-sizing: border-box;
+			user-select: none;
+			-webkit-user-select: none;
+			margin: 0;
+			padding: 0;
+			touch-action: manipulation;
+		}
+		body {
+			background: #090d16;
+			color: #f0f4f8;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			width: 100vw;
+			height: 100vh;
+			overflow: hidden;
+			position: fixed;
+		}
+
+		/* Orientation Warning for Portrait Mode */
+		#portrait-warning {
+			position: fixed;
+			inset: 0;
+			background: #0b1120;
+			z-index: 999;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 30px;
+			transition: opacity 0.3s ease;
+		}
+		@media (orientation: landscape) {
+			#portrait-warning { display: none !important; }
+		}
+		.rotate-icon {
+			font-size: 50px;
+			margin-bottom: 16px;
+			animation: rotateDevice 2s infinite ease-in-out;
+		}
+		@keyframes rotateDevice {
+			0%, 100% { transform: rotate(0deg); }
+			50% { transform: rotate(90deg); }
+		}
+
+		/* Main Dashboard Layout */
+		#controller-ui {
+			display: grid;
+			grid-template-columns: 1fr 1.2fr 1fr;
+			width: 100vw;
+			height: 100vh;
+			padding: 12px;
+			gap: 12px;
+		}
+
+		/* Left Area: Brake Pedal */
+		.pedal-col {
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+		}
+		.touch-pedal {
+			flex: 1;
+			border-radius: 20px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			border: 2px solid rgba(255, 255, 255, 0.15);
+			transition: transform 0.08s, box-shadow 0.08s, background 0.08s;
+			position: relative;
+			overflow: hidden;
+		}
+		.pedal-brake {
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.45));
+			border-color: rgba(239, 68, 68, 0.5);
+		}
+		.pedal-brake.active {
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.7), rgba(220, 38, 38, 0.9));
+			box-shadow: 0 0 35px rgba(239, 68, 68, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.3);
+			transform: scale(0.97);
+		}
+		.pedal-gas {
+			background: linear-gradient(180deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.45));
+			border-color: rgba(16, 185, 129, 0.5);
+		}
+		.pedal-gas.active {
+			background: linear-gradient(180deg, rgba(16, 185, 129, 0.7), rgba(5, 150, 105, 0.9));
+			box-shadow: 0 0 35px rgba(16, 185, 129, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.3);
+			transform: scale(0.97);
+		}
+		.pedal-title {
+			font-size: 24px;
+			font-weight: 900;
+			letter-spacing: 0.1em;
+			text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+		}
+		.pedal-sub {
+			font-size: 11px;
+			color: rgba(255, 255, 255, 0.7);
+			margin-top: 4px;
+			font-weight: 600;
+		}
+
+		/* Center Area: Steering Gauge & Status */
+		.center-col {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: space-between;
+			height: 100%;
+			padding: 4px 0;
+		}
+		.header-status {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			background: rgba(255, 255, 255, 0.06);
+			padding: 5px 14px;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			font-size: 11px;
+			font-weight: 700;
+		}
+		.status-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: #eab308;
+			box-shadow: 0 0 8px #eab308;
+		}
+		.status-dot.connected {
+			background: #10b981;
+			box-shadow: 0 0 10px #10b981;
+		}
+
+		/* Steering Wheel Virtual Graphic */
+		.wheel-container {
+			position: relative;
+			width: 140px;
+			height: 140px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.wheel-svg {
+			width: 100%;
+			height: 100%;
+			transition: transform 0.05s ease-out;
+			filter: drop-shadow(0 0 12px rgba(0, 247, 255, 0.4));
+		}
+		.steer-readout {
+			position: absolute;
+			font-size: 15px;
+			font-weight: 800;
+			color: #00f7ff;
+			font-variant-numeric: tabular-nums;
+		}
+
+		/* Center Action Buttons */
+		.center-actions {
+			display: flex;
+			gap: 8px;
+			width: 100%;
+		}
+		.btn-action {
+			flex: 1;
+			padding: 10px 6px;
+			border-radius: 12px;
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			background: rgba(255, 255, 255, 0.08);
+			color: #fff;
+			font-size: 11px;
+			font-weight: 700;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 4px;
+			transition: all 0.1s;
+		}
+		.btn-action:active {
+			background: rgba(255, 255, 255, 0.2);
+			transform: scale(0.96);
+		}
+		.btn-nitro {
+			background: linear-gradient(135deg, #ec4899, #8b5cf6);
+			border-color: rgba(236, 72, 153, 0.6);
+		}
+		.btn-nitro.active {
+			box-shadow: 0 0 20px rgba(236, 72, 153, 0.8);
+			transform: scale(0.95);
+		}
+
+		/* Permissions Modal */
+		#permission-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(9, 13, 22, 0.95);
+			z-index: 1000;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 24px;
+			text-align: center;
+		}
+		.btn-primary {
+			padding: 14px 28px;
+			background: linear-gradient(135deg, #00f7ff, #0070f3);
+			color: #000;
+			font-size: 16px;
+			font-weight: 800;
+			border: none;
+			border-radius: 999px;
+			margin-top: 20px;
+			box-shadow: 0 4px 20px rgba(0, 247, 255, 0.4);
+		}
+	</style>
+</head>
+<body>
+
+	<!-- Portrait Warning -->
+	<div id="portrait-warning">
+		<div class="rotate-icon">📱 ➔ 🔄</div>
+		<h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">ROTATE TO LANDSCAPE</h2>
+		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone like a real steering wheel with both hands.</p>
+	</div>
+
+	<!-- iOS / Browser Sensor Permission Overlay -->
+	<div id="permission-overlay">
+		<div style="font-size: 40px; margin-bottom: 12px;">🏎️ 📱</div>
+		<h2 style="font-size: 22px; font-weight: 800; margin-bottom: 8px;">Connect Motion Controller</h2>
+		<p style="font-size: 13px; color: #94a3b8; max-width: 320px;">
+			Allow motion sensors so your phone can act as a physical steering wheel.
+		</p>
+		<button id="btn-start-sensors" class="btn-primary">START CONTROLLER</button>
+	</div>
+
+	<!-- Main Controller Interface -->
+	<div id="controller-ui">
+		
+		<!-- Left: Brake / Reverse Pedal -->
+		<div class="pedal-col">
+			<div id="pedal-brake" class="touch-pedal pedal-brake">
+				<div class="pedal-title">BRAKE</div>
+				<div class="pedal-sub">HOLD TO REVERSE</div>
+			</div>
+		</div>
+
+		<!-- Center: Telemetry & Wheel -->
+		<div class="center-col">
+			
+			<div class="header-status">
+				<span id="status-dot" class="status-dot"></span>
+				<span id="status-text">CONNECTING...</span>
+				<span id="ping-text" style="color: #64748b; margin-left: 4px;">--ms</span>
+			</div>
+
+			<!-- Virtual Steering Wheel SVG -->
+			<div class="wheel-container">
+				<svg id="steering-wheel" class="wheel-svg" viewBox="0 0 100 100">
+					<!-- Outer Rim -->
+					<circle cx="50" cy="50" r="42" stroke="#00f7ff" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="210 50" />
+					<circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="none" />
+					<!-- Center Hub -->
+					<circle cx="50" cy="50" r="16" fill="#0f172a" stroke="#00f7ff" stroke-width="2" />
+					<!-- Top Center Marker -->
+					<rect x="47" y="5" width="6" height="12" rx="3" fill="#ff007f" />
+					<!-- Spokes -->
+					<line x1="10" y1="50" x2="34" y2="50" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
+					<line x1="66" y1="50" x2="90" y2="50" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
+					<line x1="50" y1="66" x2="50" y2="88" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
+				</svg>
+				<div id="steer-readout" class="steer-readout">0°</div>
+			</div>
+
+			<!-- Bottom Actions -->
+			<div class="center-actions">
+				<button id="btn-calibrate" class="btn-action">🎯 Calibrate</button>
+				<button id="btn-nitro" class="btn-action btn-nitro">⚡ NITRO</button>
+			</div>
+
+		</div>
+
+		<!-- Right: Gas / Accelerate Pedal -->
+		<div class="pedal-col">
+			<div id="pedal-gas" class="touch-pedal pedal-gas">
+				<div class="pedal-title">GAS</div>
+				<div class="pedal-sub">HOLD TO ACCELERATE</div>
+			</div>
+		</div>
+
+	</div>
+
+	<script>
+		// State
+		let targetRoomId = window.location.hash ? window.location.hash.substring(1) : '';
+		let peer = null;
+		let conn = null;
+		let isConnected = false;
+
+		let zeroGamma = 0;
+		let currentSteer = 0;
+		let isGasActive = false;
+		let isBrakeActive = false;
+		let isNitroActive = false;
+
+		const statusDot = document.getElementById('status-dot');
+		const statusText = document.getElementById('status-text');
+		const pingText = document.getElementById('ping-text');
+		const wheelSvg = document.getElementById('steering-wheel');
+		const steerReadout = document.getElementById('steer-readout');
+		const pedalGas = document.getElementById('pedal-gas');
+		const pedalBrake = document.getElementById('pedal-brake');
+		const btnNitro = document.getElementById('btn-nitro');
+		const btnCalibrate = document.getElementById('btn-calibrate');
+		const permOverlay = document.getElementById('permission-overlay');
+
+		// Haptic Feedback
+		function vibrate(ms = 20) {
+			if (navigator.vibrate) navigator.vibrate(ms);
+		}
+
+		// Touch Controls for Pedals
+		function setupTouch(elem, onDown, onUp) {
+			elem.addEventListener('touchstart', (e) => {
+				e.preventDefault();
+				onDown();
+			}, { passive: false });
+			elem.addEventListener('touchend', (e) => {
+				e.preventDefault();
+				onUp();
+			}, { passive: false });
+			elem.addEventListener('touchcancel', (e) => {
+				e.preventDefault();
+				onUp();
+			}, { passive: false });
+
+			// Mouse fallback
+			elem.addEventListener('mousedown', () => onDown());
+			elem.addEventListener('mouseup', () => onUp());
+			elem.addEventListener('mouseleave', () => onUp());
+		}
+
+		setupTouch(pedalGas, () => {
+			isGasActive = true;
+			pedalGas.classList.add('active');
+			vibrate(25);
+		}, () => {
+			isGasActive = false;
+			pedalGas.classList.remove('active');
+		});
+
+		setupTouch(pedalBrake, () => {
+			isBrakeActive = true;
+			pedalBrake.classList.add('active');
+			vibrate(25);
+		}, () => {
+			isBrakeActive = false;
+			pedalBrake.classList.remove('active');
+		});
+
+		setupTouch(btnNitro, () => {
+			isNitroActive = true;
+			btnNitro.classList.add('active');
+			vibrate(40);
+		}, () => {
+			isNitroActive = false;
+			btnNitro.classList.remove('active');
+		});
+
+		btnCalibrate.addEventListener('click', () => {
+			vibrate(30);
+			btnCalibrate.textContent = '✅ Calibrated!';
+			setTimeout(() => { btnCalibrate.textContent = '🎯 Calibrate'; }, 1000);
+		});
+
+		// Motion & Gyroscope Listener
+		function handleOrientation(event) {
+			// In landscape mode:
+			// Gamma represents left/right steering tilt (-90 to +90)
+			// Beta represents forward/backward pitch
+			let rawTilt = 0;
+			
+			// Detect orientation tilt
+			if (typeof event.gamma === 'number' && event.gamma !== null) {
+				// Depending on whether phone is tilted left or right in landscape:
+				if (Math.abs(window.orientation || 0) === 90) {
+					rawTilt = (window.orientation === 90) ? -event.beta : event.beta;
+				} else {
+					rawTilt = event.gamma;
+				}
+			}
+
+			const tilt = rawTilt - zeroGamma;
+			const maxAngle = 38; // Max steering lock angle
+			const deadzone = 2.5;
+
+			let normalized = 0;
+			if (Math.abs(tilt) > deadzone) {
+				const effective = Math.sign(tilt) * (Math.abs(tilt) - deadzone);
+				normalized = Math.min(1, Math.max(-1, effective / (maxAngle - deadzone)));
+			}
+
+			currentSteer = normalized;
+
+			// Update Virtual Steering Wheel Graphic
+			const visualAngle = currentSteer * 90;
+			wheelSvg.style.transform = `rotate(${visualAngle}deg)`;
+			steerReadout.textContent = `${Math.round(currentSteer * 45)}°`;
+		}
+
+		btnCalibrate.addEventListener('click', () => {
+			// Recalibrate center tilt
+			zeroGamma = 0;
+		});
+
+		// Permissions
+		document.getElementById('btn-start-sensors').addEventListener('click', async () => {
+			if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+				try {
+					const permission = await DeviceOrientationEvent.requestPermission();
+					if (permission === 'granted') {
+						window.addEventListener('deviceorientation', handleOrientation, true);
+					}
+				} catch (e) {
+					console.warn('DeviceOrientation permission failed:', e);
+				}
+			} else {
+				window.addEventListener('deviceorientation', handleOrientation, true);
+			}
+
+			permOverlay.style.display = 'none';
+			initPeer();
+		});
+
+		// WebRTC PeerJS Connection
+		function initPeer() {
+			if (!targetRoomId) {
+				targetRoomId = prompt('Enter 4-letter Game Code from PC screen (e.g. RACE-1234):') || '';
+				if (targetRoomId) targetRoomId = targetRoomId.trim().toUpperCase();
+			}
+
+			statusText.textContent = `JOINING ${targetRoomId}...`;
+
+			const peerId = 'phone_' + Math.random().toString(36).substring(2, 8);
+			peer = new Peer(peerId, {
+				debug: 1,
+				config: {
+					iceServers: [
+						{ urls: 'stun:stun.l.google.com:19302' },
+						{ urls: 'stun:global.stun.twilio.com:3478' }
+					]
+				}
+			});
+
+			peer.on('open', () => {
+				connectToHost(targetRoomId);
+			});
+
+			peer.on('error', (err) => {
+				console.error('Peer error:', err);
+				statusText.textContent = 'RETRYING...';
+				setTimeout(() => connectToHost(targetRoomId), 2000);
+			});
+		}
+
+		function connectToHost(roomId) {
+			if (!roomId) return;
+			const hostPeerId = 'realdrive_' + roomId;
+			conn = peer.connect(hostPeerId, { reliable: false, serialization: 'json' });
+
+			conn.on('open', () => {
+				isConnected = true;
+				statusDot.classList.add('connected');
+				statusText.textContent = 'CONNECTED 🟢';
+				vibrate([50, 50, 50]);
+
+				// High-frequency 60 FPS Telemetry transmission loop
+				startTelemetryLoop();
+			});
+
+			conn.on('close', () => {
+				isConnected = false;
+				statusDot.classList.remove('connected');
+				statusText.textContent = 'DISCONNECTED 🔴';
+				setTimeout(() => connectToHost(roomId), 2000);
+			});
+
+			conn.on('data', (data) => {
+				if (data && data.pong) {
+					const latency = Math.round(performance.now() - data.t);
+					pingText.textContent = `${latency}ms`;
+				}
+				if (data && data.vibrate) {
+					vibrate(data.vibrate);
+				}
+			});
+		}
+
+		function startTelemetryLoop() {
+			let lastPing = 0;
+
+			function loop() {
+				if (conn && conn.open) {
+					const now = performance.now();
+					
+					// Send Telemetry packet
+					conn.send({
+						s: currentSteer,
+						g: isGasActive ? 1 : 0,
+						b: isBrakeActive ? 1 : 0,
+						n: isNitroActive ? 1 : 0,
+						t: now
+					});
+
+					// Ping check every 1s
+					if (now - lastPing > 1000) {
+						lastPing = now;
+						conn.send({ ping: true, t: now });
+					}
+				}
+				requestAnimationFrame(loop);
+			}
+
+			requestAnimationFrame(loop);
+		}
+	</script>
+</body>
+</html>
