@@ -675,6 +675,7 @@ export class GameUI {
 
 		// Phone Modal
 		this.phoneBtn.addEventListener('click', () => {
+			this.checkLocalIP();
 			this.updateQRCode();
 			this.phoneModal.classList.add('show');
 		});
@@ -828,16 +829,45 @@ export class GameUI {
 
 		const hostInput = document.getElementById('phone-host-input');
 		const host = (hostInput && hostInput.value.trim()) || window.location.hostname || 'localhost';
-		const port = (window.location.port && host === window.location.hostname) ? `:${window.location.port}` : '';
+		const port = (window.location.port && host === window.location.hostname) ? `:${window.location.port}` : (host.includes(':') ? '' : '');
 		const proto = window.location.protocol;
 		const roomCode = this.phoneController ? this.phoneController.roomCode : 'DEMO';
 
-		// Resolve current directory path (supports subdirectories like /Real_Drive/ on GitHub Pages)
 		let basePath = window.location.pathname;
 		basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
 		if (!basePath.startsWith('/')) basePath = '/' + basePath;
 
 		return `${proto}//${host}${port}${basePath}phone.html?v=${Date.now()}#${roomCode}`;
+
+	}
+
+	async checkLocalIP() {
+
+		if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+
+			try {
+
+				const res = await fetch('/api/local-ip');
+				if (res.ok) {
+
+					const data = await res.json();
+					if (data.ip && data.ip !== 'localhost') {
+
+						const hostInput = document.getElementById('phone-host-input');
+						if (hostInput) {
+
+							hostInput.value = `${data.ip}:${data.port}`;
+							this.updateQRCode();
+
+						}
+
+					}
+
+				}
+
+			} catch (e) {}
+
+		}
 
 	}
 

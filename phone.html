@@ -92,7 +92,7 @@
 			background: rgba(255, 255, 255, 0.06);
 			border: 2px solid rgba(0, 247, 255, 0.4);
 			border-radius: 12px;
-			margin: 14px 0 16px 0;
+			margin: 12px 0 14px 0;
 			outline: none;
 			box-sizing: border-box;
 		}
@@ -303,9 +303,9 @@
 	<div id="permission-overlay">
 		<div class="start-card">
 			<div style="font-size: 36px; margin-bottom: 8px;">🏎️ 📱</div>
-			<h2 style="font-size: 20px; font-weight: 800; color: #fff;">Connect to PC Game</h2>
+			<h2 style="font-size: 20px; font-weight: 800; color: #fff;">Connect to Laptop</h2>
 			<p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
-				Enter the 4-letter Code from your PC screen:
+				Enter 4-Letter Game Code:
 			</p>
 			
 			<input id="input-room-code" class="input-code" type="text" maxlength="6" placeholder="CODE" autofocus />
@@ -376,6 +376,7 @@
 	<script>
 		// State
 		let targetRoomId = '';
+		let ws = null;
 		let mqttClient = null;
 		let isConnected = false;
 		let sensorsActive = false;
@@ -549,15 +550,9 @@
 			inputRoomCode.focus();
 		});
 
-		// Ultra-Low Latency WebSocket Connection
+		// Connection Manager: Checks Local Direct Wi-Fi WebSocket First, then Cloud MQTT
 		let broadcast = null;
 		let telemetryInterval = null;
-
-		const BROKERS = [
-			'wss://broker.hivemq.com:8884/mqtt',
-			'wss://broker.emqx.io:8084/mqtt'
-		];
-		let brokerIdx = 0;
 
 		function startConnection(roomId) {
 			if (!roomId) return;
@@ -566,22 +561,72 @@
 			statusDot.className = 'status-dot';
 			statusText.textContent = `CONNECTING...`;
 
-			const topic = `realdrive/game/${roomId}`;
-			const feedbackTopic = `realdrive/game/${roomId}/feedback`;
-			const pongTopic = `realdrive/game/${roomId}/pong`;
-
 			if (typeof BroadcastChannel !== 'undefined') {
 				broadcast = new BroadcastChannel('realdrive_channel_' + roomId);
 			}
+
+			const isLocalOrigin = window.location.hostname !== 'adhi2k.github.io' && (window.location.hostname.startsWith('192.168.') || window.location.hostname.startsWith('10.') || window.location.hostname === 'localhost');
+
+			if (isLocalOrigin) {
+				connectLocalWS(roomId);
+			} else {
+				connectCloudMQTT(roomId);
+			}
+		}
+
+		function connectLocalWS(roomId) {
+			const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+			const port = window.location.port ? `:${window.location.port}` : ':8000';
+			const host = window.location.hostname;
+			const wsUrl = `${proto}//${host}${port}/ws?role=phone&room=${roomId}`;
+
+			try {
+				if (ws) { ws.close(); ws = null; }
+				ws = new WebSocket(wsUrl);
+
+				ws.onopen = () => {
+					isConnected = true;
+					statusDot.className = 'status-dot connected';
+					statusText.textContent = `WI-FI DIRECT (${roomId}) 🟢`;
+					pingText.textContent = `<1ms`;
+					vibrate([60, 40, 60]);
+
+					startTelemetryStreaming();
+				};
+
+				ws.onmessage = (event) => {
+					try {
+						const data = JSON.parse(event.data);
+						if (data && data.vibrate) vibrate(data.vibrate);
+					} catch (e) {}
+				};
+
+				ws.onerror = () => {
+					connectCloudMQTT(roomId);
+				};
+
+				ws.onclose = () => {
+					isConnected = false;
+					statusDot.className = 'status-dot';
+					statusText.textContent = `RETRYING...`;
+				};
+
+			} catch (e) {
+				connectCloudMQTT(roomId);
+			}
+		}
+
+		function connectCloudMQTT(roomId) {
+			const topic = `realdrive/game/${roomId}`;
+			const feedbackTopic = `realdrive/game/${roomId}/feedback`;
+			const pongTopic = `realdrive/game/${roomId}/pong`;
 
 			if (mqttClient) {
 				try { mqttClient.end(true); } catch (e) {}
 			}
 
-			const brokerUrl = BROKERS[brokerIdx % BROKERS.length];
-
 			try {
-				mqttClient = mqtt.connect(brokerUrl, {
+				mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
 					clientId: 'phone_' + Math.random().toString(16).substring(2, 8),
 					clean: true,
 					keepalive: 30,
@@ -611,8 +656,7 @@
 					} catch (e) {}
 				});
 
-				mqttClient.on('error', (err) => {
-					brokerIdx++;
+				mqttClient.on('error', () => {
 					statusDot.className = 'status-dot';
 					statusText.textContent = `RETRYING...`;
 				});
@@ -623,9 +667,7 @@
 					statusText.textContent = `RECONNECTING...`;
 				});
 
-			} catch (e) {
-				console.warn('Connection failed:', e);
-			}
+			} catch (e) {}
 		}
 
 		function startTelemetryStreaming(topic) {
@@ -633,7 +675,6 @@
 
 			let lastPing = 0;
 
-			// Send 35 times per second (30-40Hz) with compact numeric precision
 			telemetryInterval = setInterval(() => {
 				const now = performance.now();
 				const packet = {
@@ -644,8 +685,16 @@
 					t: now
 				};
 
-				if (mqttClient && mqttClient.connected) {
-					mqttClient.publish(topic, JSON.stringify(packet), { qos: 0 });
+				const jsonStr = JSON.stringify(packet);
+
+				// 1. Direct Local Wi-Fi WebSocket (0ms lag)
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					ws.send(jsonStr);
+				}
+
+				// 2. Cloud MQTT
+				if (mqttClient && mqttClient.connected && topic) {
+					mqttClient.publish(topic, jsonStr, { qos: 0 });
 
 					if (now - lastPing > 1000) {
 						lastPing = now;
@@ -653,10 +702,11 @@
 					}
 				}
 
+				// 3. Same-device BroadcastChannel
 				if (broadcast) {
 					broadcast.postMessage(packet);
 				}
-			}, 28);
+			}, 25);
 		}
 	</script>
 </body>

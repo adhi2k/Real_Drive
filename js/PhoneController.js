@@ -1,5 +1,5 @@
 /**
- * RealDrive: High-Speed WebSocket & WebRTC Phone Controller Receiver
+ * RealDrive: Hybrid Local Wi-Fi & Cloud WebSocket Phone Controller Receiver
  */
 export class PhoneController {
 
@@ -7,7 +7,8 @@ export class PhoneController {
 
 		this.roomCode = this.generateRoomCode();
 		this.mqttTopic = `realdrive/game/${this.roomCode}`;
-		this.client = null;
+		this.ws = null;
+		this.mqttClient = null;
 		this.connected = false;
 
 		this.targetSteer = 0;
@@ -50,53 +51,135 @@ export class PhoneController {
 
 	init() {
 
-		if ( typeof mqtt !== 'undefined' ) {
+		const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith( '192.168.' ) || window.location.hostname.startsWith( '10.' );
 
-			try {
+		if ( isLocal ) {
 
-				this.client = mqtt.connect( 'wss://broker.hivemq.com:8884/mqtt', {
-					clientId: 'pc_' + Math.random().toString( 16 ).substring( 2, 8 ),
-					clean: true,
-					keepalive: 30,
-					reconnectPeriod: 1000
-				} );
+			this.initLocalWS();
 
-				this.client.on( 'connect', () => {
+		} else {
 
-					console.log( '✅ PC WebSocket connected. Room Code:', this.roomCode );
-					this.client.subscribe( this.mqttTopic, { qos: 0 } );
-					this.client.subscribe( `${this.mqttTopic}/ping`, { qos: 0 } );
+			this.initCloudMQTT();
 
-				} );
+		}
 
-				this.client.on( 'message', ( topic, message ) => {
+	}
 
-					try {
+	initLocalWS() {
 
-						const data = JSON.parse( message.toString() );
+		const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+		const port = window.location.port ? `:${window.location.port}` : ':8000';
+		const host = window.location.hostname || 'localhost';
+		const wsUrl = `${proto}//${host}${port}/ws?role=host&room=${this.roomCode}`;
 
-						if ( topic === `${this.mqttTopic}/ping` ) {
+		try {
 
-							this.client.publish( `${this.mqttTopic}/pong`, JSON.stringify( { t: data.t } ), { qos: 0 } );
-							return;
+			this.ws = new WebSocket( wsUrl );
 
-						}
+			this.ws.onopen = () => {
 
-						if ( topic === this.mqttTopic ) {
+				console.log( `✅ [Local Wi-Fi Server Connected] Room Code: ${this.roomCode}` );
 
-							this.handlePacket( data );
+			};
 
-						}
+			this.ws.onmessage = ( event ) => {
 
-					} catch ( e ) {}
+				try {
 
-				} );
+					const data = JSON.parse( event.data );
+					if ( data.event === 'phone_connected' ) {
 
-			} catch ( e ) {
+						this.connected = true;
+						if ( this.onConnect ) this.onConnect( this.roomCode );
 
-				console.warn( 'MQTT error:', e );
+					} else if ( data.event === 'phone_disconnected' ) {
 
-			}
+						this.connected = false;
+						this.resetInputs();
+						if ( this.onDisconnect ) this.onDisconnect();
+
+					} else {
+
+						this.handlePacket( data );
+
+					}
+
+				} catch ( e ) {}
+
+			};
+
+			this.ws.onerror = () => {
+
+				// Fallback to cloud MQTT if local WS fails
+				this.initCloudMQTT();
+
+			};
+
+			this.ws.onclose = () => {
+
+				setTimeout( () => {
+
+					if ( ! this.connected ) this.initLocalWS();
+
+				}, 3000 );
+
+			};
+
+		} catch ( e ) {
+
+			this.initCloudMQTT();
+
+		}
+
+	}
+
+	initCloudMQTT() {
+
+		if ( typeof mqtt === 'undefined' || this.mqttClient ) return;
+
+		try {
+
+			this.mqttClient = mqtt.connect( 'wss://broker.hivemq.com:8884/mqtt', {
+				clientId: 'pc_' + Math.random().toString( 16 ).substring( 2, 8 ),
+				clean: true,
+				keepalive: 30,
+				reconnectPeriod: 1500
+			} );
+
+			this.mqttClient.on( 'connect', () => {
+
+				console.log( `✅ [Cloud WebSocket Connected] Room Code: ${this.roomCode}` );
+				this.mqttClient.subscribe( this.mqttTopic, { qos: 0 } );
+				this.mqttClient.subscribe( `${this.mqttTopic}/ping`, { qos: 0 } );
+
+			} );
+
+			this.mqttClient.on( 'message', ( topic, message ) => {
+
+				try {
+
+					const data = JSON.parse( message.toString() );
+
+					if ( topic === `${this.mqttTopic}/ping` ) {
+
+						this.mqttClient.publish( `${this.mqttTopic}/pong`, JSON.stringify( { t: data.t } ), { qos: 0 } );
+						return;
+
+					}
+
+					if ( topic === this.mqttTopic ) {
+
+						this.handlePacket( data );
+
+					}
+
+				} catch ( e ) {}
+
+			} );
+
+		} catch ( e ) {
+
+			console.warn( 'Cloud MQTT error:', e );
 
 		}
 
@@ -123,9 +206,15 @@ export class PhoneController {
 
 	vibratePhone( ms = 30 ) {
 
-		if ( this.client && this.client.connected ) {
+		const payload = JSON.stringify( { vibrate: ms } );
 
-			this.client.publish( `${this.mqttTopic}/feedback`, JSON.stringify( { vibrate: ms } ), { qos: 0 } );
+		if ( this.ws && this.ws.readyState === WebSocket.OPEN ) {
+
+			this.ws.send( payload );
+
+		} else if ( this.mqttClient && this.mqttClient.connected ) {
+
+			this.mqttClient.publish( `${this.mqttTopic}/feedback`, payload, { qos: 0 } );
 
 		}
 
@@ -155,8 +244,8 @@ export class PhoneController {
 		}
 
 		// Smooth exponential filtering at 60 FPS
-		const steerLerp = Math.min( 1.0, dt * 18.0 );
-		const pedalLerp = Math.min( 1.0, dt * 22.0 );
+		const steerLerp = Math.min( 1.0, dt * 20.0 );
+		const pedalLerp = Math.min( 1.0, dt * 24.0 );
 
 		this.steer += ( this.targetSteer - this.steer ) * steerLerp;
 		this.gas += ( this.targetGas - this.gas ) * pedalLerp;
@@ -164,22 +253,8 @@ export class PhoneController {
 
 	}
 
-	getSteering() {
-
-		return this.connected ? this.steer : 0;
-
-	}
-
-	getGas() {
-
-		return this.connected ? ( this.gas * ( this.nitro ? 1.4 : 1.0 ) ) : 0;
-
-	}
-
-	getBrake() {
-
-		return this.connected ? this.brake : 0;
-
-	}
+	getSteering() { return this.connected ? this.steer : 0; }
+	getGas() { return this.connected ? ( this.gas * ( this.nitro ? 1.4 : 1.0 ) ) : 0; }
+	getBrake() { return this.connected ? this.brake : 0; }
 
 }
