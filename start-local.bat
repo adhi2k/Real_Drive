@@ -1,5 +1,7 @@
 @echo off
-title RealDrive Local Wi-Fi Server
-echo Starting RealDrive Local Wi-Fi Game Server...
+title RealDrive - Local Wi-Fi Server
+echo ============================================================
+echo   Starting RealDrive Local Wi-Fi Server...
+echo ============================================================
 node server.mjs
 pause

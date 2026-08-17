@@ -6,7 +6,7 @@
 	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 	<meta http-equiv="Pragma" content="no-cache">
 	<meta http-equiv="Expires" content="0">
-	<title>RealDrive • Mobile Motion Controller</title>
+	<title>RealDrive • Mobile Controller</title>
 	<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 	<style>
 		* {
@@ -15,7 +15,7 @@
 			-webkit-user-select: none;
 			margin: 0;
 			padding: 0;
-			touch-action: manipulation;
+			touch-action: none;
 		}
 		html, body {
 			background: #090d16;
@@ -47,8 +47,8 @@
 			#portrait-warning { display: none !important; }
 		}
 		.rotate-icon {
-			font-size: 50px;
-			margin-bottom: 16px;
+			font-size: 48px;
+			margin-bottom: 12px;
 			animation: rotateDevice 2s infinite ease-in-out;
 		}
 		@keyframes rotateDevice {
@@ -92,7 +92,7 @@
 			background: rgba(255, 255, 255, 0.06);
 			border: 2px solid rgba(0, 247, 255, 0.4);
 			border-radius: 12px;
-			margin: 12px 0 14px 0;
+			margin: 14px 0 16px 0;
 			outline: none;
 			box-sizing: border-box;
 		}
@@ -120,7 +120,7 @@
 		/* Main Dashboard Layout */
 		#controller-ui {
 			display: grid;
-			grid-template-columns: 1.1fr 1.2fr 1.1fr;
+			grid-template-columns: 1fr 1fr 1fr;
 			width: 100vw;
 			height: 100vh;
 			height: 100dvh;
@@ -131,13 +131,14 @@
 			box-sizing: border-box;
 		}
 
-		/* Left Area: Brake Pedal */
-		.pedal-col {
+		/* Left Column: Steering Controls */
+		.control-col {
 			display: flex;
 			flex-direction: column;
+			gap: 8px;
 			height: 100%;
 		}
-		.touch-pedal {
+		.touch-btn {
 			flex: 1;
 			border-radius: 18px;
 			display: flex;
@@ -146,38 +147,56 @@
 			justify-content: center;
 			cursor: pointer;
 			border: 2px solid rgba(255, 255, 255, 0.15);
-			transition: transform 0.08s, box-shadow 0.08s, background 0.08s;
+			transition: transform 0.06s, box-shadow 0.06s, background 0.06s;
 			position: relative;
 			overflow: hidden;
 		}
-		.pedal-brake {
+		.btn-steer-left {
+			background: linear-gradient(180deg, rgba(14, 165, 233, 0.25), rgba(2, 132, 199, 0.45));
+			border-color: rgba(14, 165, 233, 0.5);
+		}
+		.btn-steer-left.active {
+			background: linear-gradient(180deg, rgba(14, 165, 233, 0.75), rgba(2, 132, 199, 0.95));
+			box-shadow: 0 0 35px rgba(14, 165, 233, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
+			transform: scale(0.97);
+		}
+		.btn-steer-right {
+			background: linear-gradient(180deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.45));
+			border-color: rgba(99, 102, 241, 0.5);
+		}
+		.btn-steer-right.active {
+			background: linear-gradient(180deg, rgba(99, 102, 241, 0.75), rgba(79, 70, 229, 0.95));
+			box-shadow: 0 0 35px rgba(99, 102, 241, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
+			transform: scale(0.97);
+		}
+		.btn-pedal-brake {
 			background: linear-gradient(180deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.45));
 			border-color: rgba(239, 68, 68, 0.5);
 		}
-		.pedal-brake.active {
-			background: linear-gradient(180deg, rgba(239, 68, 68, 0.7), rgba(220, 38, 38, 0.9));
-			box-shadow: 0 0 35px rgba(239, 68, 68, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.3);
+		.btn-pedal-brake.active {
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.75), rgba(220, 38, 38, 0.95));
+			box-shadow: 0 0 35px rgba(239, 68, 68, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
 			transform: scale(0.97);
 		}
-		.pedal-gas {
+		.btn-pedal-gas {
 			background: linear-gradient(180deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.45));
 			border-color: rgba(16, 185, 129, 0.5);
 		}
-		.pedal-gas.active {
-			background: linear-gradient(180deg, rgba(16, 185, 129, 0.7), rgba(5, 150, 105, 0.9));
-			box-shadow: 0 0 35px rgba(16, 185, 129, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.3);
+		.btn-pedal-gas.active {
+			background: linear-gradient(180deg, rgba(16, 185, 129, 0.75), rgba(5, 150, 105, 0.95));
+			box-shadow: 0 0 35px rgba(16, 185, 129, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
 			transform: scale(0.97);
 		}
-		.pedal-title {
-			font-size: 22px;
+		.btn-label {
+			font-size: 20px;
 			font-weight: 900;
-			letter-spacing: 0.1em;
+			letter-spacing: 0.05em;
 			text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 		}
-		.pedal-sub {
+		.btn-sub {
 			font-size: 10px;
 			color: rgba(255, 255, 255, 0.7);
-			margin-top: 4px;
+			margin-top: 2px;
 			font-weight: 600;
 		}
 
@@ -188,7 +207,7 @@
 			align-items: center;
 			justify-content: space-between;
 			height: 100%;
-			padding: 2px 0 4px 0;
+			padding: 2px 0;
 			box-sizing: border-box;
 		}
 		.header-row {
@@ -230,46 +249,45 @@
 			box-shadow: 0 0 10px #10b981;
 		}
 
-		/* Steering Wheel Virtual Graphic & Touch Steer */
-		.wheel-container {
-			position: relative;
-			width: 125px;
-			height: 125px;
+		/* Mode Switcher Pill */
+		.mode-switcher {
 			display: flex;
-			align-items: center;
-			justify-content: center;
-			margin: 2px 0;
-			cursor: grab;
-			touch-action: none;
-		}
-		.wheel-container:active {
-			cursor: grabbing;
-		}
-		.wheel-svg {
+			background: rgba(0, 0, 0, 0.4);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 999px;
+			padding: 2px;
+			gap: 2px;
 			width: 100%;
-			height: 100%;
-			transition: transform 0.04s ease-out;
-			filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.4));
-			pointer-events: none;
+			max-width: 180px;
 		}
-		.steer-readout {
-			position: absolute;
-			font-size: 14px;
+		.mode-btn {
+			flex: 1;
+			padding: 5px 0;
+			text-align: center;
+			font-size: 10px;
 			font-weight: 800;
-			color: #00f7ff;
-			font-variant-numeric: tabular-nums;
-			pointer-events: none;
+			border-radius: 999px;
+			border: none;
+			background: transparent;
+			color: #94a3b8;
+			cursor: pointer;
+			transition: all 0.15s;
+		}
+		.mode-btn.active {
+			background: #00f7ff;
+			color: #000;
+			box-shadow: 0 0 10px rgba(0, 247, 255, 0.4);
 		}
 
 		/* Center Action Buttons */
 		.center-actions {
 			display: flex;
-			gap: 8px;
+			gap: 6px;
 			width: 100%;
 		}
 		.btn-action {
 			flex: 1;
-			padding: 9px 4px;
+			padding: 10px 4px;
 			border-radius: 12px;
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			background: rgba(255, 255, 255, 0.08);
@@ -303,16 +321,16 @@
 	<div id="portrait-warning">
 		<div class="rotate-icon">📱 ➔ 🔄</div>
 		<h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">ROTATE TO LANDSCAPE</h2>
-		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone horizontally like a real steering wheel.</p>
+		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone horizontally like a game controller.</p>
 	</div>
 
 	<!-- Connect Modal Overlay -->
 	<div id="permission-overlay">
 		<div class="start-card">
-			<div style="font-size: 36px; margin-bottom: 8px;">🏎️ 📱</div>
-			<h2 style="font-size: 20px; font-weight: 800; color: #fff;">Connect to Laptop</h2>
+			<div style="font-size: 36px; margin-bottom: 8px;">🎮 📱</div>
+			<h2 style="font-size: 20px; font-weight: 800; color: #fff;">Connect to PC Game</h2>
 			<p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
-				Enter 4-Letter Game Code:
+				Enter the 4-letter Code from your PC screen:
 			</p>
 			
 			<input id="input-room-code" class="input-code" type="text" maxlength="6" placeholder="CODE" autofocus />
@@ -324,15 +342,19 @@
 	<!-- Main Controller Interface -->
 	<div id="controller-ui">
 		
-		<!-- Left: Brake / Reverse Pedal -->
-		<div class="pedal-col">
-			<div id="pedal-brake" class="touch-pedal pedal-brake">
-				<div class="pedal-title">BRAKE</div>
-				<div class="pedal-sub">HOLD TO REVERSE</div>
+		<!-- Left: Steer Left & Steer Right Buttons -->
+		<div class="control-col">
+			<div id="btn-steer-left" class="touch-btn btn-steer-left">
+				<div class="btn-label">⬅️ LEFT</div>
+				<div class="btn-sub">STEER LEFT</div>
+			</div>
+			<div id="btn-steer-right" class="touch-btn btn-steer-right">
+				<div class="btn-label">RIGHT ➡️</div>
+				<div class="btn-sub">STEER RIGHT</div>
 			</div>
 		</div>
 
-		<!-- Center: Telemetry & Wheel -->
+		<!-- Center: Mode, Status, & Nitro -->
 		<div class="center-col">
 			
 			<div class="header-row">
@@ -344,37 +366,37 @@
 				<button id="btn-fs-toggle" class="btn-fullscreen" title="Toggle Fullscreen">⛶</button>
 			</div>
 
-			<!-- Virtual Steering Wheel SVG (Supports Gyroscope Tilt + Direct Touch Drag) -->
-			<div class="wheel-container" id="wheel-touch-area">
-				<svg id="steering-wheel" class="wheel-svg" viewBox="0 0 100 100">
-					<!-- Outer Rim -->
-					<circle cx="50" cy="50" r="42" stroke="#00f7ff" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="210 50" />
-					<circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="none" />
-					<!-- Center Hub -->
-					<circle cx="50" cy="50" r="16" fill="#0f172a" stroke="#00f7ff" stroke-width="2" />
-					<!-- Top Center Marker -->
-					<rect x="47" y="5" width="6" height="12" rx="3" fill="#ff007f" />
-					<!-- Spokes -->
-					<line x1="10" y1="50" x2="34" y2="50" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
-					<line x1="66" y1="50" x2="90" y2="50" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
-					<line x1="50" y1="66" x2="50" y2="88" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
-				</svg>
-				<div id="steer-readout" class="steer-readout">0°</div>
+			<!-- Control Mode Switcher -->
+			<div class="mode-switcher">
+				<button id="mode-buttons" class="mode-btn active">🎮 4-BUTTONS</button>
+				<button id="mode-gyro" class="mode-btn">🌀 GYRO</button>
+			</div>
+
+			<!-- Center Display (Live Steer Feedback) -->
+			<div style="text-align: center;">
+				<div id="steer-indicator-text" style="font-size: 14px; font-weight: 800; color: #00f7ff;">STEER: 0%</div>
+				<div style="width: 100px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; margin: 4px auto; overflow: hidden; position: relative;">
+					<div id="steer-bar" style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: #00f7ff; transition: width 0.05s, left 0.05s;"></div>
+				</div>
 			</div>
 
 			<!-- Bottom Actions -->
 			<div class="center-actions">
-				<button id="btn-calibrate" class="btn-action">🎯 Calibrate</button>
+				<button id="btn-calibrate" class="btn-action" style="display: none;">🎯 Zero</button>
 				<button id="btn-nitro" class="btn-action btn-nitro">⚡ NITRO</button>
 			</div>
 
 		</div>
 
-		<!-- Right: Gas / Accelerate Pedal -->
-		<div class="pedal-col">
-			<div id="pedal-gas" class="touch-pedal pedal-gas">
-				<div class="pedal-title">GAS</div>
-				<div class="pedal-sub">HOLD TO ACCELERATE</div>
+		<!-- Right: Gas & Brake Pedals -->
+		<div class="control-col">
+			<div id="btn-gas" class="touch-btn btn-pedal-gas">
+				<div class="btn-label">⬆️ GAS</div>
+				<div class="btn-sub">ACCELERATE</div>
+			</div>
+			<div id="btn-brake" class="touch-btn btn-pedal-brake">
+				<div class="btn-label">⬇️ BRAKE</div>
+				<div class="btn-sub">REVERSE</div>
 			</div>
 		</div>
 
@@ -383,33 +405,56 @@
 	<script>
 		// State
 		let targetRoomId = '';
-		let ws = null;
-		let mqttClient = null;
+		let controlMode = localStorage.getItem('realdrive.ctrl_mode') || 'buttons'; // 'buttons' or 'gyro'
 		let isConnected = false;
-		let sensorsActive = false;
+		let localWs = null;
+		let mqttClient = null;
 
-		let zeroTilt = 0;
-		let currentSteer = 0;
+		let btnLeftActive = false;
+		let btnRightActive = false;
 		let isGasActive = false;
 		let isBrakeActive = false;
 		let isNitroActive = false;
 
-		let touchSteeringActive = false;
+		let currentSteer = 0;
+		let zeroGamma = 0;
 
 		const statusDot = document.getElementById('status-dot');
 		const statusText = document.getElementById('status-text');
 		const pingText = document.getElementById('ping-text');
-		const wheelSvg = document.getElementById('steering-wheel');
-		const steerReadout = document.getElementById('steer-readout');
-		const pedalGas = document.getElementById('pedal-gas');
-		const pedalBrake = document.getElementById('pedal-brake');
+		const steerText = document.getElementById('steer-indicator-text');
+		const steerBar = document.getElementById('steer-bar');
+
+		const btnSteerLeft = document.getElementById('btn-steer-left');
+		const btnSteerRight = document.getElementById('btn-steer-right');
+		const btnGas = document.getElementById('btn-gas');
+		const btnBrake = document.getElementById('btn-brake');
 		const btnNitro = document.getElementById('btn-nitro');
 		const btnCalibrate = document.getElementById('btn-calibrate');
+
+		const modeButtons = document.getElementById('mode-buttons');
+		const modeGyro = document.getElementById('mode-gyro');
 		const permOverlay = document.getElementById('permission-overlay');
 		const inputRoomCode = document.getElementById('input-room-code');
 		const btnHeaderCode = document.getElementById('btn-header-code');
 		const btnFsToggle = document.getElementById('btn-fs-toggle');
-		const wheelTouchArea = document.getElementById('wheel-touch-area');
+
+		// Set Initial Mode
+		function setMode(mode) {
+			controlMode = mode;
+			localStorage.setItem('realdrive.ctrl_mode', mode);
+			modeButtons.classList.toggle('active', mode === 'buttons');
+			modeGyro.classList.toggle('active', mode === 'gyro');
+			btnCalibrate.style.display = mode === 'gyro' ? 'flex' : 'none';
+
+			if (mode === 'gyro') {
+				activateGyroSensors();
+			}
+		}
+
+		modeButtons.addEventListener('click', () => setMode('buttons'));
+		modeGyro.addEventListener('click', () => setMode('gyro'));
+		setMode(controlMode);
 
 		// Fullscreen helper
 		function enterFullscreen() {
@@ -417,10 +462,9 @@
 			if (doc.requestFullscreen) doc.requestFullscreen().catch(() => {});
 			else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
 		}
-
 		btnFsToggle.addEventListener('click', enterFullscreen);
 
-		// Check hash code from URL
+		// Hash code auto-fill
 		const hash = window.location.hash ? window.location.hash.substring(1).trim().toUpperCase() : '';
 		if (hash) {
 			inputRoomCode.value = hash;
@@ -434,227 +478,135 @@
 			}
 		}
 
-		// Touch Controls for Pedals
-		function setupTouch(elem, onDown, onUp) {
-			elem.addEventListener('touchstart', (e) => {
+		// Pointer/Touch Listeners for Instant Multi-Touch Response
+		function bindButton(elem, onDown, onUp) {
+			elem.addEventListener('pointerdown', (e) => {
 				e.preventDefault();
+				elem.setPointerCapture(e.pointerId);
 				onDown();
 			}, { passive: false });
-			elem.addEventListener('touchend', (e) => {
-				e.preventDefault();
-				onUp();
-			}, { passive: false });
-			elem.addEventListener('touchcancel', (e) => {
+
+			elem.addEventListener('pointerup', (e) => {
 				e.preventDefault();
 				onUp();
 			}, { passive: false });
 
-			elem.addEventListener('mousedown', () => onDown());
-			elem.addEventListener('mouseup', () => onUp());
-			elem.addEventListener('mouseleave', () => onUp());
+			elem.addEventListener('pointercancel', (e) => {
+				e.preventDefault();
+				onUp();
+			}, { passive: false });
 		}
 
-		setupTouch(pedalGas, () => {
+		bindButton(btnSteerLeft, () => {
+			btnLeftActive = true;
+			btnSteerLeft.classList.add('active');
+			vibrate(15);
+		}, () => {
+			btnLeftActive = false;
+			btnSteerLeft.classList.remove('active');
+		});
+
+		bindButton(btnSteerRight, () => {
+			btnRightActive = true;
+			btnSteerRight.classList.add('active');
+			vibrate(15);
+		}, () => {
+			btnRightActive = false;
+			btnSteerRight.classList.remove('active');
+		});
+
+		bindButton(btnGas, () => {
 			isGasActive = true;
-			pedalGas.classList.add('active');
-			vibrate(20);
+			btnGas.classList.add('active');
+			vibrate(15);
 		}, () => {
 			isGasActive = false;
-			pedalGas.classList.remove('active');
+			btnGas.classList.remove('active');
 		});
 
-		setupTouch(pedalBrake, () => {
+		bindButton(btnBrake, () => {
 			isBrakeActive = true;
-			pedalBrake.classList.add('active');
-			vibrate(20);
+			btnBrake.classList.add('active');
+			vibrate(15);
 		}, () => {
 			isBrakeActive = false;
-			pedalBrake.classList.remove('active');
+			btnBrake.classList.remove('active');
 		});
 
-		setupTouch(btnNitro, () => {
+		bindButton(btnNitro, () => {
 			isNitroActive = true;
 			btnNitro.classList.add('active');
-			vibrate(35);
+			vibrate(30);
 		}, () => {
 			isNitroActive = false;
 			btnNitro.classList.remove('active');
 		});
 
-		// Touch / Drag Steering on Central Wheel
-		let touchStartX = 0;
-		wheelTouchArea.addEventListener('touchstart', (e) => {
-			if (e.touches.length > 0) {
-				touchSteeringActive = true;
-				touchStartX = e.touches[0].clientX;
-			}
-		}, { passive: true });
-
-		wheelTouchArea.addEventListener('touchmove', (e) => {
-			if (touchSteeringActive && e.touches.length > 0) {
-				const dx = e.touches[0].clientX - touchStartX;
-				const norm = Math.min(1, Math.max(-1, dx / 60));
-				applySteering(norm);
-			}
-		}, { passive: true });
-
-		wheelTouchArea.addEventListener('touchend', () => {
-			touchSteeringActive = false;
-		});
-
 		btnCalibrate.addEventListener('click', () => {
+			zeroGamma = 0;
 			vibrate(30);
-			btnCalibrate.textContent = '✅ Zero Set!';
-			setTimeout(() => { btnCalibrate.textContent = '🎯 Calibrate'; }, 1000);
 		});
 
-		// Universal Gyroscope & Accelerometer Handler
-		let lastRawAngle = 0;
-
-		function applySteering(normalized) {
-			currentSteer = Math.min(1, Math.max(-1, normalized));
-			const visualAngle = currentSteer * 90;
-			wheelSvg.style.transform = `rotate(${visualAngle}deg)`;
-			steerReadout.textContent = `${Math.round(currentSteer * 45)}°`;
-		}
-
-		function processRawTilt(rawDeg) {
-			if (touchSteeringActive) return;
-			lastRawAngle = rawDeg;
-
-			const effectiveAngle = rawDeg - zeroTilt;
-			const maxLock = 32; // degrees to full steering lock
-			const deadzone = 2.0;
-
-			let norm = 0;
-			if (Math.abs(effectiveAngle) > deadzone) {
-				const diff = Math.sign(effectiveAngle) * (Math.abs(effectiveAngle) - deadzone);
-				norm = Math.min(1, Math.max(-1, diff / (maxLock - deadzone)));
-			}
-
-			applySteering(norm);
-		}
-
-		// 1. Device Orientation Listener (Gyroscope)
+		// Gyroscope Handler
 		function handleOrientation(event) {
-			if (typeof event.beta !== 'number' && typeof event.gamma !== 'number') return;
-
-			// Detect landscape orientation angle
-			const screenAngle = (screen.orientation && screen.orientation.angle !== undefined) 
-				? screen.orientation.angle 
-				: (typeof window.orientation === 'number' ? window.orientation : 90);
-
-			let angle = 0;
-
-			// In landscape holding position:
-			if (screenAngle === 90 || window.innerWidth > window.innerHeight) {
-				// Notch to the left: beta acts as steering rotation
-				angle = -event.beta;
-			} else if (screenAngle === 270 || screenAngle === -90) {
-				// Notch to the right
-				angle = event.beta;
-			} else {
-				// Portrait mode fallback
-				angle = event.gamma;
+			if (controlMode !== 'gyro') return;
+			let rawTilt = 0;
+			if (typeof event.gamma === 'number' && event.gamma !== null) {
+				if (Math.abs(window.orientation || 0) === 90) {
+					rawTilt = (window.orientation === 90) ? -event.beta : event.beta;
+				} else {
+					rawTilt = event.gamma;
+				}
 			}
 
-			if (!isNaN(angle)) {
-				processRawTilt(angle);
+			const tilt = rawTilt - zeroGamma;
+			const maxAngle = 35;
+			const deadzone = 2.5;
+
+			let normalized = 0;
+			if (Math.abs(tilt) > deadzone) {
+				const effective = Math.sign(tilt) * (Math.abs(tilt) - deadzone);
+				normalized = Math.min(1, Math.max(-1, effective / (maxAngle - deadzone)));
 			}
+			currentSteer = normalized;
 		}
 
-		// 2. Device Motion Gravity Vector Fallback (Works on 100% of Android/iOS devices)
-		function handleMotion(event) {
-			if (!event.accelerationIncludingGravity) return;
-			const g = event.accelerationIncludingGravity;
-			if (typeof g.x !== 'number' || typeof g.y !== 'number') return;
-
-			// Calculate physical tilt from gravitational acceleration vector
-			const screenAngle = (screen.orientation && screen.orientation.angle !== undefined) 
-				? screen.orientation.angle 
-				: (typeof window.orientation === 'number' ? window.orientation : 90);
-
-			let gravitySteerDeg = 0;
-
-			if (screenAngle === 90 || window.innerWidth > window.innerHeight) {
-				gravitySteerDeg = Math.atan2(g.y, Math.sqrt(g.x * g.x + g.z * g.z)) * (180 / Math.PI);
-			} else if (screenAngle === 270 || screenAngle === -90) {
-				gravitySteerDeg = -Math.atan2(g.y, Math.sqrt(g.x * g.x + g.z * g.z)) * (180 / Math.PI);
-			} else {
-				gravitySteerDeg = Math.atan2(g.x, Math.sqrt(g.y * g.y + g.z * g.z)) * (180 / Math.PI);
-			}
-
-			if (!isNaN(gravitySteerDeg)) {
-				processRawTilt(gravitySteerDeg);
-			}
-		}
-
-		btnCalibrate.addEventListener('click', () => {
-			zeroTilt = lastRawAngle;
-		});
-
-		// Request Motion Sensors
-		async function activateSensors() {
-			if (sensorsActive) return;
-
-			// iOS 13+ Safari explicit permission request
+		async function activateGyroSensors() {
 			if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
 				try {
-					const permission = await DeviceOrientationEvent.requestPermission();
-					if (permission === 'granted') {
+					const perm = await DeviceOrientationEvent.requestPermission();
+					if (perm === 'granted') {
 						window.addEventListener('deviceorientation', handleOrientation, true);
-						sensorsActive = true;
 					}
-				} catch (e) {
-					console.warn('DeviceOrientation permission error:', e);
-				}
+				} catch (e) {}
 			} else {
 				window.addEventListener('deviceorientation', handleOrientation, true);
-				window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-				sensorsActive = true;
-			}
-
-			// Also attach gravity accelerometer as fallback
-			if (typeof DeviceMotionEvent !== 'undefined') {
-				if (typeof DeviceMotionEvent.requestPermission === 'function') {
-					try {
-						const perm = await DeviceMotionEvent.requestPermission();
-						if (perm === 'granted') window.addEventListener('devicemotion', handleMotion, true);
-					} catch (e) {}
-				} else {
-					window.addEventListener('devicemotion', handleMotion, true);
-				}
 			}
 		}
 
-		// Start & Connect Button Handler
-		document.getElementById('btn-start-sensors').addEventListener('click', async () => {
+		// Connect Button
+		document.getElementById('btn-start-sensors').addEventListener('click', () => {
 			const entered = inputRoomCode.value.trim().toUpperCase();
 			if (!entered) {
 				inputRoomCode.focus();
 				return;
 			}
-
 			enterFullscreen();
-
 			targetRoomId = entered;
 			window.location.hash = targetRoomId;
-
-			await activateSensors();
 			permOverlay.style.display = 'none';
 
 			startConnection(targetRoomId);
 		});
 
-		// Header Tap to Change Room
 		btnHeaderCode.addEventListener('click', () => {
 			permOverlay.style.display = 'flex';
 			inputRoomCode.focus();
 		});
 
-		// Connection Manager: Checks Local Direct Wi-Fi WebSocket First, then Cloud MQTT
+		// Dual-Mode Connection (Same Wi-Fi Direct WebSocket + Online MQTT)
 		let broadcast = null;
-		let telemetryInterval = null;
+		let streamInterval = null;
 
 		function startConnection(roomId) {
 			if (!roomId) return;
@@ -667,58 +619,31 @@
 				broadcast = new BroadcastChannel('realdrive_channel_' + roomId);
 			}
 
-			const isLocalOrigin = window.location.hostname !== 'adhi2k.github.io' && (window.location.hostname.startsWith('192.168.') || window.location.hostname.startsWith('10.') || window.location.hostname === 'localhost');
-
-			if (isLocalOrigin) {
-				connectLocalWS(roomId);
-			} else {
-				connectCloudMQTT(roomId);
+			// 1. Check if running on local Wi-Fi direct server
+			if (window.location.protocol.startsWith('http') && window.location.hostname !== 'adhi2k.github.io') {
+				const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws';
+				try {
+					localWs = new WebSocket(wsUrl);
+					localWs.onopen = () => {
+						localWs.send(JSON.stringify({ type: 'join', role: 'phone', room: roomId }));
+					};
+					localWs.onmessage = (e) => {
+						try {
+							const msg = JSON.parse(e.data);
+							if (msg.type === 'status') {
+								isConnected = msg.connected;
+								statusDot.className = isConnected ? 'status-dot connected' : 'status-dot';
+								statusText.textContent = isConnected ? `LOCAL WI-FI (${roomId}) 🟢` : `WAITING PC...`;
+								pingText.textContent = '1ms';
+								if (isConnected) vibrate([50, 30, 50]);
+							}
+							if (msg.vibrate) vibrate(msg.vibrate);
+						} catch (err) {}
+					};
+				} catch (e) {}
 			}
-		}
 
-		function connectLocalWS(roomId) {
-			const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-			const port = window.location.port ? `:${window.location.port}` : ':8000';
-			const host = window.location.hostname;
-			const wsUrl = `${proto}//${host}${port}/ws?role=phone&room=${roomId}`;
-
-			try {
-				if (ws) { ws.close(); ws = null; }
-				ws = new WebSocket(wsUrl);
-
-				ws.onopen = () => {
-					isConnected = true;
-					statusDot.className = 'status-dot connected';
-					statusText.textContent = `WI-FI DIRECT (${roomId}) 🟢`;
-					pingText.textContent = `<1ms`;
-					vibrate([60, 40, 60]);
-
-					startTelemetryStreaming();
-				};
-
-				ws.onmessage = (event) => {
-					try {
-						const data = JSON.parse(event.data);
-						if (data && data.vibrate) vibrate(data.vibrate);
-					} catch (e) {}
-				};
-
-				ws.onerror = () => {
-					connectCloudMQTT(roomId);
-				};
-
-				ws.onclose = () => {
-					isConnected = false;
-					statusDot.className = 'status-dot';
-					statusText.textContent = `RETRYING...`;
-				};
-
-			} catch (e) {
-				connectCloudMQTT(roomId);
-			}
-		}
-
-		function connectCloudMQTT(roomId) {
+			// 2. Online High-Speed WebSocket Broker
 			const topic = `realdrive/game/${roomId}`;
 			const feedbackTopic = `realdrive/game/${roomId}/feedback`;
 			const pongTopic = `realdrive/game/${roomId}/pong`;
@@ -729,7 +654,7 @@
 
 			try {
 				mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
-					clientId: 'phone_' + Math.random().toString(16).substring(2, 8),
+					clientId: 'ph_' + Math.random().toString(16).substring(2, 8),
 					clean: true,
 					keepalive: 30,
 					reconnectPeriod: 1500
@@ -743,8 +668,6 @@
 
 					mqttClient.subscribe(feedbackTopic, { qos: 0 });
 					mqttClient.subscribe(pongTopic, { qos: 0 });
-
-					startTelemetryStreaming(topic);
 				});
 
 				mqttClient.on('message', (t, msg) => {
@@ -762,41 +685,53 @@
 					statusDot.className = 'status-dot';
 					statusText.textContent = `RETRYING...`;
 				});
-
-				mqttClient.on('close', () => {
-					isConnected = false;
-					statusDot.className = 'status-dot';
-					statusText.textContent = `RECONNECTING...`;
-				});
-
 			} catch (e) {}
-		}
 
-		function startTelemetryStreaming(topic) {
-			if (telemetryInterval) clearInterval(telemetryInterval);
+			// Start 40Hz Telemetry Stream
+			if (streamInterval) clearInterval(streamInterval);
 
 			let lastPing = 0;
-
-			telemetryInterval = setInterval(() => {
+			streamInterval = setInterval(() => {
 				const now = performance.now();
+
+				// Calculate Steer from Buttons or Gyro
+				if (controlMode === 'buttons') {
+					if (btnLeftActive && !btnRightActive) {
+						currentSteer = -1.0;
+					} else if (btnRightActive && !btnLeftActive) {
+						currentSteer = 1.0;
+					} else {
+						currentSteer = 0.0;
+					}
+				}
+
+				// Update UI Steer Bar
+				const steerPct = Math.round(currentSteer * 100);
+				steerText.textContent = `STEER: ${steerPct}%`;
+				if (steerPct >= 0) {
+					steerBar.style.left = '50%';
+					steerBar.style.width = `${steerPct / 2}%`;
+				} else {
+					steerBar.style.left = `${50 + (steerPct / 2)}%`;
+					steerBar.style.width = `${Math.abs(steerPct) / 2}%`;
+				}
+
 				const packet = {
-					s: Math.round(currentSteer * 100) / 100,
+					s: currentSteer,
 					g: isGasActive ? 1 : 0,
 					b: isBrakeActive ? 1 : 0,
 					n: isNitroActive ? 1 : 0,
 					t: now
 				};
 
-				const jsonStr = JSON.stringify(packet);
-
-				// 1. Direct Local Wi-Fi WebSocket (0ms lag)
-				if (ws && ws.readyState === WebSocket.OPEN) {
-					ws.send(jsonStr);
+				// Send via Local Wi-Fi WS
+				if (localWs && localWs.readyState === 1) {
+					localWs.send(JSON.stringify(packet));
 				}
 
-				// 2. Cloud MQTT
-				if (mqttClient && mqttClient.connected && topic) {
-					mqttClient.publish(topic, jsonStr, { qos: 0 });
+				// Send via Online MQTT
+				if (mqttClient && mqttClient.connected) {
+					mqttClient.publish(topic, JSON.stringify(packet), { qos: 0 });
 
 					if (now - lastPing > 1000) {
 						lastPing = now;
@@ -804,7 +739,6 @@
 					}
 				}
 
-				// 3. Same-device BroadcastChannel
 				if (broadcast) {
 					broadcast.postMessage(packet);
 				}
