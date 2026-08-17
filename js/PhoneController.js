@@ -146,6 +146,8 @@ export class PhoneController {
 
 		if ( ! data ) return;
 
+		this._lastPacketTime = Date.now();
+
 		if ( ! this.connected ) {
 
 			this.connected = true;
@@ -184,6 +186,14 @@ export class PhoneController {
 	}
 
 	update( dt ) {
+
+		if ( this.connected && this._lastPacketTime && ( Date.now() - this._lastPacketTime > 4000 ) ) {
+
+			this.connected = false;
+			this.resetInputs();
+			if ( this.onDisconnect ) this.onDisconnect();
+
+		}
 
 		if ( ! this.connected ) {
 
