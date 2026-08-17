@@ -46,9 +46,12 @@ dirLight.shadow.camera.far = 60;
 dirLight.shadow.radius = 4;
 scene.add( dirLight );
 
-const hemiLight = new THREE.HemisphereLight( 0xc8d8e8, 0x7a8a5a, 2 );
+const hemiLight = new THREE.HemisphereLight( 0xc8d8e8, 0x7a8a5a, 1.8 );
 hemiLight.position.copy( dirLight.position );
 scene.add( hemiLight );
+
+const ambientLight = new THREE.AmbientLight( 0xffffff, 0.8 );
+scene.add( ambientLight );
 
 window.addEventListener( 'resize', () => {
 
@@ -185,19 +188,6 @@ function setupWorldAndTrack( customCells, mapParam ) {
 	buildTrack( trackContainer, models, customCells );
 	scene.add( trackContainer );
 	currentTrackGroup = trackContainer;
-
-	// Probes
-	const probeHeight = 6;
-	const probes = new LightProbeGrid(
-		hw * 2, probeHeight, hd * 2,
-		Math.max( 4, Math.round( hw / 4 ) ),
-		2,
-		Math.max( 4, Math.round( hd / 4 ) ),
-	);
-	probes.position.set( bounds.centerX, probeHeight / 2, bounds.centerZ );
-	probes.bake( renderer, scene, { cubemapSize: 32, near: 0.1, far: groundSize } );
-	scene.add( probes );
-	currentProbes = probes;
 
 	// Physics World
 	const worldSettings = createWorldSettings();
