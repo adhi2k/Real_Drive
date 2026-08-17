@@ -230,21 +230,27 @@
 			box-shadow: 0 0 10px #10b981;
 		}
 
-		/* Steering Wheel Virtual Graphic */
+		/* Steering Wheel Virtual Graphic & Touch Steer */
 		.wheel-container {
 			position: relative;
-			width: 120px;
-			height: 120px;
+			width: 125px;
+			height: 125px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			margin: 2px 0;
+			cursor: grab;
+			touch-action: none;
+		}
+		.wheel-container:active {
+			cursor: grabbing;
 		}
 		.wheel-svg {
 			width: 100%;
 			height: 100%;
-			transition: transform 0.05s ease-out;
+			transition: transform 0.04s ease-out;
 			filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.4));
+			pointer-events: none;
 		}
 		.steer-readout {
 			position: absolute;
@@ -252,6 +258,7 @@
 			font-weight: 800;
 			color: #00f7ff;
 			font-variant-numeric: tabular-nums;
+			pointer-events: none;
 		}
 
 		/* Center Action Buttons */
@@ -337,8 +344,8 @@
 				<button id="btn-fs-toggle" class="btn-fullscreen" title="Toggle Fullscreen">⛶</button>
 			</div>
 
-			<!-- Virtual Steering Wheel SVG -->
-			<div class="wheel-container">
+			<!-- Virtual Steering Wheel SVG (Supports Gyroscope Tilt + Direct Touch Drag) -->
+			<div class="wheel-container" id="wheel-touch-area">
 				<svg id="steering-wheel" class="wheel-svg" viewBox="0 0 100 100">
 					<!-- Outer Rim -->
 					<circle cx="50" cy="50" r="42" stroke="#00f7ff" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="210 50" />
@@ -381,11 +388,13 @@
 		let isConnected = false;
 		let sensorsActive = false;
 
-		let zeroGamma = 0;
+		let zeroTilt = 0;
 		let currentSteer = 0;
 		let isGasActive = false;
 		let isBrakeActive = false;
 		let isNitroActive = false;
+
+		let touchSteeringActive = false;
 
 		const statusDot = document.getElementById('status-dot');
 		const statusText = document.getElementById('status-text');
@@ -400,6 +409,7 @@
 		const inputRoomCode = document.getElementById('input-room-code');
 		const btnHeaderCode = document.getElementById('btn-header-code');
 		const btnFsToggle = document.getElementById('btn-fs-toggle');
+		const wheelTouchArea = document.getElementById('wheel-touch-area');
 
 		// Fullscreen helper
 		function enterFullscreen() {
@@ -471,44 +481,123 @@
 			btnNitro.classList.remove('active');
 		});
 
+		// Touch / Drag Steering on Central Wheel
+		let touchStartX = 0;
+		wheelTouchArea.addEventListener('touchstart', (e) => {
+			if (e.touches.length > 0) {
+				touchSteeringActive = true;
+				touchStartX = e.touches[0].clientX;
+			}
+		}, { passive: true });
+
+		wheelTouchArea.addEventListener('touchmove', (e) => {
+			if (touchSteeringActive && e.touches.length > 0) {
+				const dx = e.touches[0].clientX - touchStartX;
+				const norm = Math.min(1, Math.max(-1, dx / 60));
+				applySteering(norm);
+			}
+		}, { passive: true });
+
+		wheelTouchArea.addEventListener('touchend', () => {
+			touchSteeringActive = false;
+		});
+
 		btnCalibrate.addEventListener('click', () => {
 			vibrate(30);
 			btnCalibrate.textContent = '✅ Zero Set!';
 			setTimeout(() => { btnCalibrate.textContent = '🎯 Calibrate'; }, 1000);
 		});
 
-		// Motion & Gyroscope Listener
-		function handleOrientation(event) {
-			let rawTilt = 0;
-			
-			if (typeof event.gamma === 'number' && event.gamma !== null) {
-				if (Math.abs(window.orientation || 0) === 90) {
-					rawTilt = (window.orientation === 90) ? -event.beta : event.beta;
-				} else {
-					rawTilt = event.gamma;
-				}
-			}
+		// Universal Gyroscope & Accelerometer Handler
+		let lastRawAngle = 0;
 
-			const tilt = rawTilt - zeroGamma;
-			const maxAngle = 38;
-			const deadzone = 2.5;
-
-			let normalized = 0;
-			if (Math.abs(tilt) > deadzone) {
-				const effective = Math.sign(tilt) * (Math.abs(tilt) - deadzone);
-				normalized = Math.min(1, Math.max(-1, effective / (maxAngle - deadzone)));
-			}
-
-			currentSteer = normalized;
-
+		function applySteering(normalized) {
+			currentSteer = Math.min(1, Math.max(-1, normalized));
 			const visualAngle = currentSteer * 90;
 			wheelSvg.style.transform = `rotate(${visualAngle}deg)`;
 			steerReadout.textContent = `${Math.round(currentSteer * 45)}°`;
 		}
 
+		function processRawTilt(rawDeg) {
+			if (touchSteeringActive) return;
+			lastRawAngle = rawDeg;
+
+			const effectiveAngle = rawDeg - zeroTilt;
+			const maxLock = 32; // degrees to full steering lock
+			const deadzone = 2.0;
+
+			let norm = 0;
+			if (Math.abs(effectiveAngle) > deadzone) {
+				const diff = Math.sign(effectiveAngle) * (Math.abs(effectiveAngle) - deadzone);
+				norm = Math.min(1, Math.max(-1, diff / (maxLock - deadzone)));
+			}
+
+			applySteering(norm);
+		}
+
+		// 1. Device Orientation Listener (Gyroscope)
+		function handleOrientation(event) {
+			if (typeof event.beta !== 'number' && typeof event.gamma !== 'number') return;
+
+			// Detect landscape orientation angle
+			const screenAngle = (screen.orientation && screen.orientation.angle !== undefined) 
+				? screen.orientation.angle 
+				: (typeof window.orientation === 'number' ? window.orientation : 90);
+
+			let angle = 0;
+
+			// In landscape holding position:
+			if (screenAngle === 90 || window.innerWidth > window.innerHeight) {
+				// Notch to the left: beta acts as steering rotation
+				angle = -event.beta;
+			} else if (screenAngle === 270 || screenAngle === -90) {
+				// Notch to the right
+				angle = event.beta;
+			} else {
+				// Portrait mode fallback
+				angle = event.gamma;
+			}
+
+			if (!isNaN(angle)) {
+				processRawTilt(angle);
+			}
+		}
+
+		// 2. Device Motion Gravity Vector Fallback (Works on 100% of Android/iOS devices)
+		function handleMotion(event) {
+			if (!event.accelerationIncludingGravity) return;
+			const g = event.accelerationIncludingGravity;
+			if (typeof g.x !== 'number' || typeof g.y !== 'number') return;
+
+			// Calculate physical tilt from gravitational acceleration vector
+			const screenAngle = (screen.orientation && screen.orientation.angle !== undefined) 
+				? screen.orientation.angle 
+				: (typeof window.orientation === 'number' ? window.orientation : 90);
+
+			let gravitySteerDeg = 0;
+
+			if (screenAngle === 90 || window.innerWidth > window.innerHeight) {
+				gravitySteerDeg = Math.atan2(g.y, Math.sqrt(g.x * g.x + g.z * g.z)) * (180 / Math.PI);
+			} else if (screenAngle === 270 || screenAngle === -90) {
+				gravitySteerDeg = -Math.atan2(g.y, Math.sqrt(g.x * g.x + g.z * g.z)) * (180 / Math.PI);
+			} else {
+				gravitySteerDeg = Math.atan2(g.x, Math.sqrt(g.y * g.y + g.z * g.z)) * (180 / Math.PI);
+			}
+
+			if (!isNaN(gravitySteerDeg)) {
+				processRawTilt(gravitySteerDeg);
+			}
+		}
+
+		btnCalibrate.addEventListener('click', () => {
+			zeroTilt = lastRawAngle;
+		});
+
 		// Request Motion Sensors
 		async function activateSensors() {
 			if (sensorsActive) return;
+
+			// iOS 13+ Safari explicit permission request
 			if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
 				try {
 					const permission = await DeviceOrientationEvent.requestPermission();
@@ -521,7 +610,20 @@
 				}
 			} else {
 				window.addEventListener('deviceorientation', handleOrientation, true);
+				window.addEventListener('deviceorientationabsolute', handleOrientation, true);
 				sensorsActive = true;
+			}
+
+			// Also attach gravity accelerometer as fallback
+			if (typeof DeviceMotionEvent !== 'undefined') {
+				if (typeof DeviceMotionEvent.requestPermission === 'function') {
+					try {
+						const perm = await DeviceMotionEvent.requestPermission();
+						if (perm === 'granted') window.addEventListener('devicemotion', handleMotion, true);
+					} catch (e) {}
+				} else {
+					window.addEventListener('devicemotion', handleMotion, true);
+				}
 			}
 		}
 
