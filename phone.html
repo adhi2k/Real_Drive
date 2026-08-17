@@ -6,7 +6,7 @@
 	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 	<meta http-equiv="Pragma" content="no-cache">
 	<meta http-equiv="Expires" content="0">
-	<title>RealDrive • Mobile Controller</title>
+	<title>RealDrive • Pro Mobile Controller</title>
 	<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 	<style>
 		* {
@@ -18,7 +18,7 @@
 			touch-action: none;
 		}
 		html, body {
-			background: #090d16;
+			background: #070a12;
 			color: #f0f4f8;
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 			width: 100vw;
@@ -29,11 +29,11 @@
 			inset: 0;
 		}
 
-		/* Orientation Warning for Portrait Mode */
+		/* Portrait Mode Warning */
 		#portrait-warning {
 			position: fixed;
 			inset: 0;
-			background: #0b1120;
+			background: #090e1a;
 			z-index: 999;
 			display: flex;
 			flex-direction: column;
@@ -47,8 +47,8 @@
 			#portrait-warning { display: none !important; }
 		}
 		.rotate-icon {
-			font-size: 48px;
-			margin-bottom: 12px;
+			font-size: 52px;
+			margin-bottom: 14px;
 			animation: rotateDevice 2s infinite ease-in-out;
 		}
 		@keyframes rotateDevice {
@@ -60,9 +60,9 @@
 		#permission-overlay {
 			position: fixed;
 			inset: 0;
-			background: rgba(9, 13, 22, 0.96);
-			backdrop-filter: blur(14px);
-			-webkit-backdrop-filter: blur(14px);
+			background: rgba(7, 10, 18, 0.96);
+			backdrop-filter: blur(16px);
+			-webkit-backdrop-filter: blur(16px);
 			z-index: 1000;
 			display: flex;
 			flex-direction: column;
@@ -72,18 +72,18 @@
 			text-align: center;
 		}
 		.start-card {
-			width: 380px;
+			width: 390px;
 			max-width: 90vw;
 			background: #0f172a;
 			border: 1px solid rgba(0, 247, 255, 0.3);
-			border-radius: 20px;
-			padding: 22px;
-			box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 247, 255, 0.15);
+			border-radius: 24px;
+			padding: 24px;
+			box-shadow: 0 14px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 247, 255, 0.15);
 		}
 		.input-code {
 			width: 100%;
-			padding: 12px;
-			font-size: 24px;
+			padding: 14px;
+			font-size: 26px;
 			font-weight: 900;
 			letter-spacing: 6px;
 			text-align: center;
@@ -91,36 +91,36 @@
 			color: #00f7ff;
 			background: rgba(255, 255, 255, 0.06);
 			border: 2px solid rgba(0, 247, 255, 0.4);
-			border-radius: 12px;
-			margin: 14px 0 16px 0;
+			border-radius: 14px;
+			margin: 16px 0 18px 0;
 			outline: none;
 			box-sizing: border-box;
 		}
 		.input-code:focus {
 			border-color: #00f7ff;
-			box-shadow: 0 0 16px rgba(0, 247, 255, 0.4);
+			box-shadow: 0 0 20px rgba(0, 247, 255, 0.45);
 		}
 		.btn-primary {
 			width: 100%;
-			padding: 14px 20px;
+			padding: 15px 22px;
 			background: linear-gradient(135deg, #00f7ff, #0070f3);
 			color: #000;
-			font-size: 15px;
+			font-size: 16px;
 			font-weight: 800;
 			border: none;
 			border-radius: 999px;
 			cursor: pointer;
-			box-shadow: 0 4px 20px rgba(0, 247, 255, 0.4);
+			box-shadow: 0 4px 25px rgba(0, 247, 255, 0.4);
 			transition: transform 0.1s;
 		}
 		.btn-primary:active {
 			transform: scale(0.97);
 		}
 
-		/* Main Dashboard Layout */
+		/* Main Dashboard Grid */
 		#controller-ui {
 			display: grid;
-			grid-template-columns: 1fr 1fr 1fr;
+			grid-template-columns: 1.15fr 0.8fr 1.15fr;
 			width: 100vw;
 			height: 100vh;
 			height: 100dvh;
@@ -131,76 +131,93 @@
 			box-sizing: border-box;
 		}
 
-		/* Left Column: Steering Controls */
-		.control-col {
+		/* Left & Right Ergonomic Columns */
+		.zone-col {
 			display: flex;
 			flex-direction: column;
 			gap: 8px;
 			height: 100%;
 		}
+
+		/* Tactile Touch Buttons & Pedals */
 		.touch-btn {
 			flex: 1;
-			border-radius: 18px;
+			border-radius: 20px;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
 			cursor: pointer;
 			border: 2px solid rgba(255, 255, 255, 0.15);
-			transition: transform 0.06s, box-shadow 0.06s, background 0.06s;
+			transition: transform 0.05s, box-shadow 0.05s, background 0.05s;
 			position: relative;
 			overflow: hidden;
+			box-shadow: inset 0 2px 8px rgba(255, 255, 255, 0.1), 0 8px 20px rgba(0, 0, 0, 0.4);
 		}
+		.touch-btn::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
+			pointer-events: none;
+		}
+
+		/* Left Steering Buttons */
 		.btn-steer-left {
-			background: linear-gradient(180deg, rgba(14, 165, 233, 0.25), rgba(2, 132, 199, 0.45));
-			border-color: rgba(14, 165, 233, 0.5);
+			background: linear-gradient(180deg, rgba(14, 165, 233, 0.28), rgba(2, 132, 199, 0.55));
+			border-color: rgba(14, 165, 233, 0.55);
 		}
 		.btn-steer-left.active {
-			background: linear-gradient(180deg, rgba(14, 165, 233, 0.75), rgba(2, 132, 199, 0.95));
-			box-shadow: 0 0 35px rgba(14, 165, 233, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
+			background: linear-gradient(180deg, rgba(14, 165, 233, 0.8), rgba(2, 132, 199, 0.98));
+			box-shadow: 0 0 35px rgba(14, 165, 233, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
 			transform: scale(0.97);
 		}
 		.btn-steer-right {
-			background: linear-gradient(180deg, rgba(99, 102, 241, 0.25), rgba(79, 70, 229, 0.45));
-			border-color: rgba(99, 102, 241, 0.5);
+			background: linear-gradient(180deg, rgba(99, 102, 241, 0.28), rgba(79, 70, 229, 0.55));
+			border-color: rgba(99, 102, 241, 0.55);
 		}
 		.btn-steer-right.active {
-			background: linear-gradient(180deg, rgba(99, 102, 241, 0.75), rgba(79, 70, 229, 0.95));
-			box-shadow: 0 0 35px rgba(99, 102, 241, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
+			background: linear-gradient(180deg, rgba(99, 102, 241, 0.8), rgba(79, 70, 229, 0.98));
+			box-shadow: 0 0 35px rgba(99, 102, 241, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
+			transform: scale(0.97);
+		}
+
+		/* Right Pedals */
+		.btn-pedal-gas {
+			flex: 1.4;
+			background: linear-gradient(180deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.55));
+			border-color: rgba(16, 185, 129, 0.55);
+		}
+		.btn-pedal-gas.active {
+			background: linear-gradient(180deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.98));
+			box-shadow: 0 0 35px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
 			transform: scale(0.97);
 		}
 		.btn-pedal-brake {
-			background: linear-gradient(180deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.45));
-			border-color: rgba(239, 68, 68, 0.5);
+			flex: 0.9;
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.28), rgba(185, 28, 28, 0.55));
+			border-color: rgba(239, 68, 68, 0.55);
 		}
 		.btn-pedal-brake.active {
-			background: linear-gradient(180deg, rgba(239, 68, 68, 0.75), rgba(220, 38, 38, 0.95));
-			box-shadow: 0 0 35px rgba(239, 68, 68, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.98));
+			box-shadow: 0 0 35px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
 			transform: scale(0.97);
 		}
-		.btn-pedal-gas {
-			background: linear-gradient(180deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.45));
-			border-color: rgba(16, 185, 129, 0.5);
-		}
-		.btn-pedal-gas.active {
-			background: linear-gradient(180deg, rgba(16, 185, 129, 0.75), rgba(5, 150, 105, 0.95));
-			box-shadow: 0 0 35px rgba(16, 185, 129, 0.85), inset 0 0 20px rgba(255, 255, 255, 0.35);
-			transform: scale(0.97);
-		}
+
 		.btn-label {
-			font-size: 20px;
+			font-size: 22px;
 			font-weight: 900;
-			letter-spacing: 0.05em;
-			text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+			letter-spacing: 0.06em;
+			text-shadow: 0 2px 10px rgba(0,0,0,0.6);
 		}
 		.btn-sub {
 			font-size: 10px;
 			color: rgba(255, 255, 255, 0.7);
 			margin-top: 2px;
-			font-weight: 600;
+			font-weight: 700;
 		}
 
-		/* Center Area: Steering Gauge & Status */
+		/* Center Area */
 		.center-col {
 			display: flex;
 			flex-direction: column;
@@ -249,16 +266,16 @@
 			box-shadow: 0 0 10px #10b981;
 		}
 
-		/* Mode Switcher Pill */
+		/* Mode Selector */
 		.mode-switcher {
 			display: flex;
-			background: rgba(0, 0, 0, 0.4);
+			background: rgba(0, 0, 0, 0.5);
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			border-radius: 999px;
 			padding: 2px;
 			gap: 2px;
 			width: 100%;
-			max-width: 180px;
+			max-width: 170px;
 		}
 		.mode-btn {
 			flex: 1;
@@ -279,7 +296,7 @@
 			box-shadow: 0 0 10px rgba(0, 247, 255, 0.4);
 		}
 
-		/* Center Action Buttons */
+		/* Center Nitro & Calibrate */
 		.center-actions {
 			display: flex;
 			gap: 6px;
@@ -288,7 +305,7 @@
 		.btn-action {
 			flex: 1;
 			padding: 10px 4px;
-			border-radius: 12px;
+			border-radius: 14px;
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			background: rgba(255, 255, 255, 0.08);
 			color: #fff;
@@ -310,8 +327,32 @@
 			border-color: rgba(236, 72, 153, 0.6);
 		}
 		.btn-nitro.active {
-			box-shadow: 0 0 20px rgba(236, 72, 153, 0.8);
+			box-shadow: 0 0 25px rgba(236, 72, 153, 0.9);
 			transform: scale(0.95);
+		}
+
+		/* Gyro Steering Wheel Graphic */
+		#gyro-wheel-container {
+			display: none;
+			position: relative;
+			width: 110px;
+			height: 110px;
+			margin: 2px auto;
+		}
+		.wheel-svg {
+			width: 100%;
+			height: 100%;
+			transition: transform 0.05s ease-out;
+			filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.4));
+		}
+		.steer-readout {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			font-size: 14px;
+			font-weight: 800;
+			color: #00f7ff;
 		}
 	</style>
 </head>
@@ -321,13 +362,13 @@
 	<div id="portrait-warning">
 		<div class="rotate-icon">📱 ➔ 🔄</div>
 		<h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">ROTATE TO LANDSCAPE</h2>
-		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone horizontally like a game controller.</p>
+		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone horizontally with both thumbs.</p>
 	</div>
 
 	<!-- Connect Modal Overlay -->
 	<div id="permission-overlay">
 		<div class="start-card">
-			<div style="font-size: 36px; margin-bottom: 8px;">🎮 📱</div>
+			<div style="font-size: 38px; margin-bottom: 6px;">🏎️ 📱</div>
 			<h2 style="font-size: 20px; font-weight: 800; color: #fff;">Connect to PC Game</h2>
 			<p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
 				Enter the 4-letter Code from your PC screen:
@@ -342,8 +383,8 @@
 	<!-- Main Controller Interface -->
 	<div id="controller-ui">
 		
-		<!-- Left: Steer Left & Steer Right Buttons -->
-		<div class="control-col">
+		<!-- Left: Steering Controls -->
+		<div class="zone-col" id="left-steering-zone">
 			<div id="btn-steer-left" class="touch-btn btn-steer-left">
 				<div class="btn-label">⬅️ LEFT</div>
 				<div class="btn-sub">STEER LEFT</div>
@@ -354,7 +395,7 @@
 			</div>
 		</div>
 
-		<!-- Center: Mode, Status, & Nitro -->
+		<!-- Center: Mode, Telemetry & Nitro -->
 		<div class="center-col">
 			
 			<div class="header-row">
@@ -372,11 +413,25 @@
 				<button id="mode-gyro" class="mode-btn">🌀 GYRO</button>
 			</div>
 
-			<!-- Center Display (Live Steer Feedback) -->
-			<div style="text-align: center;">
-				<div id="steer-indicator-text" style="font-size: 14px; font-weight: 800; color: #00f7ff;">STEER: 0%</div>
-				<div style="width: 100px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; margin: 4px auto; overflow: hidden; position: relative;">
-					<div id="steer-bar" style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: #00f7ff; transition: width 0.05s, left 0.05s;"></div>
+			<!-- Virtual Wheel for Gyro Mode -->
+			<div id="gyro-wheel-container">
+				<svg id="steering-wheel" class="wheel-svg" viewBox="0 0 100 100">
+					<circle cx="50" cy="50" r="42" stroke="#00f7ff" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="210 50" />
+					<circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.15)" stroke-width="6" fill="none" />
+					<circle cx="50" cy="50" r="16" fill="#0f172a" stroke="#00f7ff" stroke-width="2" />
+					<rect x="47" y="5" width="6" height="12" rx="3" fill="#ff007f" />
+					<line x1="10" y1="50" x2="34" y2="50" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
+					<line x1="66" y1="50" x2="90" y2="50" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
+					<line x1="50" y1="66" x2="50" y2="88" stroke="#00f7ff" stroke-width="4" stroke-linecap="round" />
+				</svg>
+				<div id="steer-readout" class="steer-readout">0°</div>
+			</div>
+
+			<!-- Steer Bar for Buttons Mode -->
+			<div id="steer-bar-container" style="text-align: center;">
+				<div id="steer-indicator-text" style="font-size: 13px; font-weight: 800; color: #00f7ff;">STEER: 0%</div>
+				<div style="width: 110px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; margin: 4px auto; overflow: hidden; position: relative;">
+					<div id="steer-bar" style="position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: #00f7ff; transition: width 0.04s, left 0.04s;"></div>
 				</div>
 			</div>
 
@@ -389,14 +444,14 @@
 		</div>
 
 		<!-- Right: Gas & Brake Pedals -->
-		<div class="control-col">
+		<div class="zone-col">
 			<div id="btn-gas" class="touch-btn btn-pedal-gas">
 				<div class="btn-label">⬆️ GAS</div>
 				<div class="btn-sub">ACCELERATE</div>
 			</div>
 			<div id="btn-brake" class="touch-btn btn-pedal-brake">
 				<div class="btn-label">⬇️ BRAKE</div>
-				<div class="btn-sub">REVERSE</div>
+				<div class="btn-sub">REVERSE / DRIFT</div>
 			</div>
 		</div>
 
@@ -405,7 +460,7 @@
 	<script>
 		// State
 		let targetRoomId = '';
-		let controlMode = localStorage.getItem('realdrive.ctrl_mode') || 'buttons'; // 'buttons' or 'gyro'
+		let controlMode = localStorage.getItem('realdrive.ctrl_mode') || 'buttons';
 		let isConnected = false;
 		let localWs = null;
 		let mqttClient = null;
@@ -417,6 +472,7 @@
 		let isNitroActive = false;
 
 		let currentSteer = 0;
+		let targetSteer = 0;
 		let zeroGamma = 0;
 
 		const statusDot = document.getElementById('status-dot');
@@ -424,9 +480,14 @@
 		const pingText = document.getElementById('ping-text');
 		const steerText = document.getElementById('steer-indicator-text');
 		const steerBar = document.getElementById('steer-bar');
+		const steerBarContainer = document.getElementById('steer-bar-container');
+		const gyroWheelContainer = document.getElementById('gyro-wheel-container');
+		const wheelSvg = document.getElementById('steering-wheel');
+		const steerReadout = document.getElementById('steer-readout');
 
 		const btnSteerLeft = document.getElementById('btn-steer-left');
 		const btnSteerRight = document.getElementById('btn-steer-right');
+		const leftSteeringZone = document.getElementById('left-steering-zone');
 		const btnGas = document.getElementById('btn-gas');
 		const btnBrake = document.getElementById('btn-brake');
 		const btnNitro = document.getElementById('btn-nitro');
@@ -439,16 +500,24 @@
 		const btnHeaderCode = document.getElementById('btn-header-code');
 		const btnFsToggle = document.getElementById('btn-fs-toggle');
 
-		// Set Initial Mode
+		// Mode Switcher
 		function setMode(mode) {
 			controlMode = mode;
 			localStorage.setItem('realdrive.ctrl_mode', mode);
 			modeButtons.classList.toggle('active', mode === 'buttons');
 			modeGyro.classList.toggle('active', mode === 'gyro');
-			btnCalibrate.style.display = mode === 'gyro' ? 'flex' : 'none';
 
 			if (mode === 'gyro') {
+				leftSteeringZone.style.opacity = '0.35';
+				gyroWheelContainer.style.display = 'block';
+				steerBarContainer.style.display = 'none';
+				btnCalibrate.style.display = 'flex';
 				activateGyroSensors();
+			} else {
+				leftSteeringZone.style.opacity = '1.0';
+				gyroWheelContainer.style.display = 'none';
+				steerBarContainer.style.display = 'block';
+				btnCalibrate.style.display = 'none';
 			}
 		}
 
@@ -464,21 +533,21 @@
 		}
 		btnFsToggle.addEventListener('click', enterFullscreen);
 
-		// Hash code auto-fill
+		// Pre-fill room code from URL hash
 		const hash = window.location.hash ? window.location.hash.substring(1).trim().toUpperCase() : '';
 		if (hash) {
 			inputRoomCode.value = hash;
 			targetRoomId = hash;
 		}
 
-		// Haptic Feedback
+		// Haptics
 		function vibrate(ms = 20) {
 			if (navigator.vibrate) {
 				try { navigator.vibrate(ms); } catch (e) {}
 			}
 		}
 
-		// Pointer/Touch Listeners for Instant Multi-Touch Response
+		// Multi-Touch Pointer Tracking
 		function bindButton(elem, onDown, onUp) {
 			elem.addEventListener('pointerdown', (e) => {
 				e.preventDefault();
@@ -536,7 +605,7 @@
 		bindButton(btnNitro, () => {
 			isNitroActive = true;
 			btnNitro.classList.add('active');
-			vibrate(30);
+			vibrate(35);
 		}, () => {
 			isNitroActive = false;
 			btnNitro.classList.remove('active');
@@ -568,7 +637,11 @@
 				const effective = Math.sign(tilt) * (Math.abs(tilt) - deadzone);
 				normalized = Math.min(1, Math.max(-1, effective / (maxAngle - deadzone)));
 			}
-			currentSteer = normalized;
+			targetSteer = normalized;
+
+			const visualAngle = targetSteer * 90;
+			wheelSvg.style.transform = `rotate(${visualAngle}deg)`;
+			steerReadout.textContent = `${Math.round(targetSteer * 45)}°`;
 		}
 
 		async function activateGyroSensors() {
@@ -584,7 +657,7 @@
 			}
 		}
 
-		// Connect Button
+		// Connect
 		document.getElementById('btn-start-sensors').addEventListener('click', () => {
 			const entered = inputRoomCode.value.trim().toUpperCase();
 			if (!entered) {
@@ -604,7 +677,7 @@
 			inputRoomCode.focus();
 		});
 
-		// Dual-Mode Connection (Same Wi-Fi Direct WebSocket + Online MQTT)
+		// Dual-Protocol Connection
 		let broadcast = null;
 		let streamInterval = null;
 
@@ -619,7 +692,7 @@
 				broadcast = new BroadcastChannel('realdrive_channel_' + roomId);
 			}
 
-			// 1. Check if running on local Wi-Fi direct server
+			// Local Wi-Fi WS
 			if (window.location.protocol.startsWith('http') && window.location.hostname !== 'adhi2k.github.io') {
 				const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws';
 				try {
@@ -633,7 +706,7 @@
 							if (msg.type === 'status') {
 								isConnected = msg.connected;
 								statusDot.className = isConnected ? 'status-dot connected' : 'status-dot';
-								statusText.textContent = isConnected ? `LOCAL WI-FI (${roomId}) 🟢` : `WAITING PC...`;
+								statusText.textContent = isConnected ? `LOCAL (${roomId}) 🟢` : `WAITING PC...`;
 								pingText.textContent = '1ms';
 								if (isConnected) vibrate([50, 30, 50]);
 							}
@@ -643,7 +716,7 @@
 				} catch (e) {}
 			}
 
-			// 2. Online High-Speed WebSocket Broker
+			// Online WebSocket MQTT Broker
 			const topic = `realdrive/game/${roomId}`;
 			const feedbackTopic = `realdrive/game/${roomId}/feedback`;
 			const pongTopic = `realdrive/game/${roomId}/pong`;
@@ -687,25 +760,29 @@
 				});
 			} catch (e) {}
 
-			// Start 40Hz Telemetry Stream
+			// High-frequency 40Hz Telemetry Loop
 			if (streamInterval) clearInterval(streamInterval);
 
 			let lastPing = 0;
 			streamInterval = setInterval(() => {
 				const now = performance.now();
 
-				// Calculate Steer from Buttons or Gyro
+				// Smooth responsive steering interpolation
 				if (controlMode === 'buttons') {
 					if (btnLeftActive && !btnRightActive) {
-						currentSteer = -1.0;
+						targetSteer = -1.0;
 					} else if (btnRightActive && !btnLeftActive) {
-						currentSteer = 1.0;
+						targetSteer = 1.0;
 					} else {
-						currentSteer = 0.0;
+						targetSteer = 0.0;
 					}
 				}
 
-				// Update UI Steer Bar
+				// Smooth ramp up for precision handling
+				currentSteer += (targetSteer - currentSteer) * 0.35;
+				if (Math.abs(currentSteer) < 0.01 && targetSteer === 0) currentSteer = 0;
+
+				// Update UI Steer Gauge
 				const steerPct = Math.round(currentSteer * 100);
 				steerText.textContent = `STEER: ${steerPct}%`;
 				if (steerPct >= 0) {
@@ -717,19 +794,17 @@
 				}
 
 				const packet = {
-					s: currentSteer,
+					s: Math.round(currentSteer * 100) / 100,
 					g: isGasActive ? 1 : 0,
 					b: isBrakeActive ? 1 : 0,
 					n: isNitroActive ? 1 : 0,
 					t: now
 				};
 
-				// Send via Local Wi-Fi WS
 				if (localWs && localWs.readyState === 1) {
 					localWs.send(JSON.stringify(packet));
 				}
 
-				// Send via Online MQTT
 				if (mqttClient && mqttClient.connected) {
 					mqttClient.publish(topic, JSON.stringify(packet), { qos: 0 });
 
