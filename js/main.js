@@ -16,32 +16,37 @@ import { PhoneController } from './PhoneController.js';
 import { GameUI } from './UI.js';
 import { PRESET_TRACKS } from './TrackGenerator.js';
 
-const renderer = new THREE.WebGLRenderer( { antialias: true, powerPreference: 'high-performance' } );
+const renderer = new THREE.WebGLRenderer( { antialias: true, outputBufferType: THREE.HalfFloatType } );
 renderer.setSize( window.innerWidth, window.innerHeight );
-renderer.setPixelRatio( Math.min( window.devicePixelRatio, 1.25 ) );
+renderer.setPixelRatio( 1.0 );
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.BasicShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.0;
+
+const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ) );
+bloomPass.strength = 0.015;
+bloomPass.radius = 0.02;
+bloomPass.threshold = 0.5;
+
+renderer.setEffects( [ bloomPass ] );
 
 document.body.appendChild( renderer.domElement );
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color( 0xadb2ba );
-scene.fog = new THREE.Fog( 0xadb2ba, 30, 70 );
+scene.fog = new THREE.Fog( 0xadb2ba, 30, 55 );
 
-const dirLight = new THREE.DirectionalLight( 0xffffff, 2.8 );
+const dirLight = new THREE.DirectionalLight( 0xffffff, 3 );
 dirLight.position.set( 11.4, 15, - 5.3 );
 dirLight.castShadow = true;
-dirLight.shadow.mapSize.setScalar( 512 );
+dirLight.shadow.mapSize.setScalar( 1024 );
 dirLight.shadow.camera.near = 0.5;
 dirLight.shadow.camera.far = 60;
+dirLight.shadow.radius = 4;
 scene.add( dirLight );
 
-const ambientLight = new THREE.AmbientLight( 0xffffff, 1.2 );
-scene.add( ambientLight );
-
-const hemiLight = new THREE.HemisphereLight( 0xd8e8f8, 0x8a9a6a, 1.4 );
+const hemiLight = new THREE.HemisphereLight( 0xc8d8e8, 0x7a8a5a, 2 );
 hemiLight.position.copy( dirLight.position );
 scene.add( hemiLight );
 
@@ -181,6 +186,21 @@ function setupWorldAndTrack( customCells, mapParam ) {
 	scene.add( trackContainer );
 	currentTrackGroup = trackContainer;
 
+	// Probes (lightweight probe baking)
+	const probeHeight = 6;
+	const countX = Math.min( 4, Math.max( 2, Math.round( hw / 6 ) ) );
+	const countZ = Math.min( 4, Math.max( 2, Math.round( hd / 6 ) ) );
+	const probes = new LightProbeGrid(
+		hw * 2, probeHeight, hd * 2,
+		countX,
+		2,
+		countZ,
+	);
+	probes.position.set( bounds.centerX, probeHeight / 2, bounds.centerZ );
+	probes.bake( renderer, scene, { cubemapSize: 16, near: 0.2, far: groundSize } );
+	scene.add( probes );
+	currentProbes = probes;
+
 	// Physics World
 	const worldSettings = createWorldSettings();
 	worldSettings.gravity = [ 0, - 9.81, 0 ];
@@ -299,7 +319,17 @@ async function init() {
 		},
 		onTogglePerf: ( turboActive ) => {
 
-			renderer.shadowMap.enabled = ! turboActive;
+			if ( turboActive ) {
+
+				renderer.shadowMap.enabled = false;
+				renderer.setEffects( [] );
+
+			} else {
+
+				renderer.shadowMap.enabled = true;
+				renderer.setEffects( [ bloomPass ] );
+
+			}
 
 		}
 	} );
