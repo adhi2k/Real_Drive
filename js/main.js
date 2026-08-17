@@ -186,18 +186,16 @@ function setupWorldAndTrack( customCells, mapParam ) {
 	scene.add( trackContainer );
 	currentTrackGroup = trackContainer;
 
-	// Probes (lightweight probe baking)
+	// Probes
 	const probeHeight = 6;
-	const countX = Math.min( 4, Math.max( 2, Math.round( hw / 6 ) ) );
-	const countZ = Math.min( 4, Math.max( 2, Math.round( hd / 6 ) ) );
 	const probes = new LightProbeGrid(
 		hw * 2, probeHeight, hd * 2,
-		countX,
+		Math.max( 4, Math.round( hw / 4 ) ),
 		2,
-		countZ,
+		Math.max( 4, Math.round( hd / 4 ) ),
 	);
 	probes.position.set( bounds.centerX, probeHeight / 2, bounds.centerZ );
-	probes.bake( renderer, scene, { cubemapSize: 16, near: 0.2, far: groundSize } );
+	probes.bake( renderer, scene, { cubemapSize: 32, near: 0.1, far: groundSize } );
 	scene.add( probes );
 	currentProbes = probes;
 

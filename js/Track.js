@@ -234,7 +234,7 @@ export function buildTrack( scene, models, customCells ) {
 				if ( ! child.isMesh ) return;
 
 				const inst = new THREE.InstancedMesh( child.geometry, child.material, count );
-				inst.castShadow = false;
+				inst.castShadow = true;
 				inst.receiveShadow = true;
 
 				for ( let i = 0; i < count; i ++ ) {
@@ -266,7 +266,7 @@ export function buildTrack( scene, models, customCells ) {
 
 	trackGroup.updateMatrixWorld( true );
 
-	trackPieceGroup.traverse( ( child ) => {
+	trackGroup.traverse( ( child ) => {
 
 		if ( child.isMesh ) {
 
