@@ -924,10 +924,28 @@
 	function getCellsArray() {
 
 		const arr = [];
+		let hasFinish = false;
+
 		for ( const [ key, cell ] of grid ) {
 
 			const [ gx, gz ] = key.split( ',' ).map( Number );
+			if ( cell.type === 'track-finish' || cell.isFinish ) hasFinish = true;
 			arr.push( [ gx, gz, cell.type, cell.orient ] );
+
+		}
+
+		if ( ! hasFinish && arr.length > 0 ) {
+
+			const straightIdx = arr.findIndex( c => c[ 2 ] === 'track-straight' );
+			if ( straightIdx !== -1 ) {
+
+				arr[ straightIdx ][ 2 ] = 'track-finish';
+
+			} else {
+
+				arr[ 0 ][ 2 ] = 'track-finish';
+
+			}
 
 		}
 

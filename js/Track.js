@@ -369,17 +369,38 @@ export function encodeCells( cells ) {
 export function decodeCells( str ) {
 
 	const bytes = base64urlToBytes( str );
+	const count = Math.floor( bytes.length / 3 );
 	const cells = [];
+	let hasFinish = false;
 
-	for ( let i = 0; i + 2 < bytes.length; i += 3 ) {
+	for ( let i = 0; i < count; i ++ ) {
 
-		const gx = bytes[ i ] - 128;
-		const gz = bytes[ i + 1 ] - 128;
-		const packed = bytes[ i + 2 ];
-		const ti = ( packed >> 2 ) & 0x03;
+		const gx = bytes[ i * 3 ] - 128;
+		const gz = bytes[ i * 3 + 1 ] - 128;
+		const packed = bytes[ i * 3 + 2 ];
+
+		const ti = ( packed >> 2 ) & 0x07;
 		const oi = packed & 0x03;
+		const typeName = TYPE_NAMES[ ti ] || 'track-straight';
+		if ( typeName === 'track-finish' ) hasFinish = true;
 
-		cells.push( [ gx, gz, TYPE_NAMES[ ti ], ORIENT_TO_GODOT[ oi ] ] );
+		cells.push( [ gx, gz, typeName, ORIENT_TO_GODOT[ oi ] ] );
+
+	}
+
+	// Guarantee every custom map has an orange finish line arch
+	if ( ! hasFinish && cells.length > 0 ) {
+
+		const straightIdx = cells.findIndex( c => c[ 2 ] === 'track-straight' );
+		if ( straightIdx !== -1 ) {
+
+			cells[ straightIdx ][ 2 ] = 'track-finish';
+
+		} else {
+
+			cells[ 0 ][ 2 ] = 'track-finish';
+
+		}
 
 	}
 
