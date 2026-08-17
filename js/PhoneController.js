@@ -65,21 +65,30 @@ export class PhoneController {
 
 					console.log( '✅ PC WebSocket connected. Room Code:', this.roomCode );
 					this.client.subscribe( this.mqttTopic, { qos: 0 } );
+					this.client.subscribe( `${this.mqttTopic}/ping`, { qos: 0 } );
 
 				} );
 
 				this.client.on( 'message', ( topic, message ) => {
 
-					if ( topic === this.mqttTopic ) {
+					try {
 
-						try {
+						const data = JSON.parse( message.toString() );
 
-							const data = JSON.parse( message.toString() );
+						if ( topic === `${this.mqttTopic}/ping` ) {
+
+							this.client.publish( `${this.mqttTopic}/pong`, JSON.stringify( { t: data.t } ), { qos: 0 } );
+							return;
+
+						}
+
+						if ( topic === this.mqttTopic ) {
+
 							this.handlePacket( data );
 
-						} catch ( e ) {}
+						}
 
-					}
+					} catch ( e ) {}
 
 				} );
 

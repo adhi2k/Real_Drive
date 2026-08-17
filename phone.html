@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 	<meta http-equiv="Pragma" content="no-cache">
 	<meta http-equiv="Expires" content="0">
@@ -17,14 +17,16 @@
 			padding: 0;
 			touch-action: manipulation;
 		}
-		body {
+		html, body {
 			background: #090d16;
 			color: #f0f4f8;
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 			width: 100vw;
 			height: 100vh;
+			height: 100dvh;
 			overflow: hidden;
 			position: fixed;
+			inset: 0;
 		}
 
 		/* Orientation Warning for Portrait Mode */
@@ -118,11 +120,15 @@
 		/* Main Dashboard Layout */
 		#controller-ui {
 			display: grid;
-			grid-template-columns: 1fr 1.2fr 1fr;
+			grid-template-columns: 1.1fr 1.2fr 1.1fr;
 			width: 100vw;
 			height: 100vh;
-			padding: 12px;
-			gap: 12px;
+			height: 100dvh;
+			padding: 8px 12px;
+			padding-bottom: max(10px, env(safe-area-inset-bottom));
+			padding-top: max(8px, env(safe-area-inset-top));
+			gap: 10px;
+			box-sizing: border-box;
 		}
 
 		/* Left Area: Brake Pedal */
@@ -133,7 +139,7 @@
 		}
 		.touch-pedal {
 			flex: 1;
-			border-radius: 20px;
+			border-radius: 18px;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
@@ -163,13 +169,13 @@
 			transform: scale(0.97);
 		}
 		.pedal-title {
-			font-size: 24px;
+			font-size: 22px;
 			font-weight: 900;
 			letter-spacing: 0.1em;
 			text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 		}
 		.pedal-sub {
-			font-size: 11px;
+			font-size: 10px;
 			color: rgba(255, 255, 255, 0.7);
 			margin-top: 4px;
 			font-weight: 600;
@@ -182,23 +188,35 @@
 			align-items: center;
 			justify-content: space-between;
 			height: 100%;
-			padding: 4px 0;
+			padding: 2px 0 4px 0;
+			box-sizing: border-box;
+		}
+		.header-row {
+			display: flex;
+			align-items: center;
+			gap: 6px;
 		}
 		.header-status {
 			display: flex;
 			align-items: center;
-			gap: 8px;
+			gap: 6px;
 			background: rgba(255, 255, 255, 0.08);
-			padding: 6px 16px;
+			padding: 5px 12px;
 			border-radius: 999px;
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			font-size: 11px;
 			font-weight: 700;
 			cursor: pointer;
-			transition: background 0.15s;
 		}
-		.header-status:active {
-			background: rgba(255, 255, 255, 0.2);
+		.btn-fullscreen {
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			color: #00f7ff;
+			padding: 5px 10px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 700;
+			cursor: pointer;
 		}
 		.status-dot {
 			width: 8px;
@@ -215,21 +233,22 @@
 		/* Steering Wheel Virtual Graphic */
 		.wheel-container {
 			position: relative;
-			width: 140px;
-			height: 140px;
+			width: 120px;
+			height: 120px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
+			margin: 2px 0;
 		}
 		.wheel-svg {
 			width: 100%;
 			height: 100%;
 			transition: transform 0.05s ease-out;
-			filter: drop-shadow(0 0 12px rgba(0, 247, 255, 0.4));
+			filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.4));
 		}
 		.steer-readout {
 			position: absolute;
-			font-size: 15px;
+			font-size: 14px;
 			font-weight: 800;
 			color: #00f7ff;
 			font-variant-numeric: tabular-nums;
@@ -243,7 +262,7 @@
 		}
 		.btn-action {
 			flex: 1;
-			padding: 10px 6px;
+			padding: 9px 4px;
 			border-radius: 12px;
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			background: rgba(255, 255, 255, 0.08);
@@ -309,10 +328,13 @@
 		<!-- Center: Telemetry & Wheel -->
 		<div class="center-col">
 			
-			<div class="header-status" id="btn-header-code" title="Tap to change room code">
-				<span id="status-dot" class="status-dot"></span>
-				<span id="status-text">CONNECTING...</span>
-				<span id="ping-text" style="color: #64748b; margin-left: 2px;">--ms</span>
+			<div class="header-row">
+				<div class="header-status" id="btn-header-code" title="Tap to change room code">
+					<span id="status-dot" class="status-dot"></span>
+					<span id="status-text">CONNECTING...</span>
+					<span id="ping-text" style="color: #64748b; margin-left: 2px;">--ms</span>
+				</div>
+				<button id="btn-fs-toggle" class="btn-fullscreen" title="Toggle Fullscreen">⛶</button>
 			</div>
 
 			<!-- Virtual Steering Wheel SVG -->
@@ -376,6 +398,16 @@
 		const permOverlay = document.getElementById('permission-overlay');
 		const inputRoomCode = document.getElementById('input-room-code');
 		const btnHeaderCode = document.getElementById('btn-header-code');
+		const btnFsToggle = document.getElementById('btn-fs-toggle');
+
+		// Fullscreen helper
+		function enterFullscreen() {
+			const doc = document.documentElement;
+			if (doc.requestFullscreen) doc.requestFullscreen().catch(() => {});
+			else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+		}
+
+		btnFsToggle.addEventListener('click', enterFullscreen);
 
 		// Check hash code from URL
 		const hash = window.location.hash ? window.location.hash.substring(1).trim().toUpperCase() : '';
@@ -500,6 +532,8 @@
 				return;
 			}
 
+			enterFullscreen();
+
 			targetRoomId = entered;
 			window.location.hash = targetRoomId;
 
@@ -515,9 +549,9 @@
 			inputRoomCode.focus();
 		});
 
-		// High-Speed WebSocket Connection
+		// Ultra-Low Latency WebSocket Connection
 		let broadcast = null;
-		let telemetryLoopActive = false;
+		let telemetryInterval = null;
 
 		const BROKERS = [
 			'wss://broker.hivemq.com:8884/mqtt',
@@ -563,10 +597,7 @@
 					mqttClient.subscribe(feedbackTopic, { qos: 0 });
 					mqttClient.subscribe(pongTopic, { qos: 0 });
 
-					if (!telemetryLoopActive) {
-						telemetryLoopActive = true;
-						startTelemetryLoop(topic);
-					}
+					startTelemetryStreaming(topic);
 				});
 
 				mqttClient.on('message', (t, msg) => {
@@ -597,13 +628,16 @@
 			}
 		}
 
-		function startTelemetryLoop(topic) {
+		function startTelemetryStreaming(topic) {
+			if (telemetryInterval) clearInterval(telemetryInterval);
+
 			let lastPing = 0;
 
-			function loop() {
+			// Send 35 times per second (30-40Hz) with compact numeric precision
+			telemetryInterval = setInterval(() => {
 				const now = performance.now();
 				const packet = {
-					s: currentSteer,
+					s: Math.round(currentSteer * 100) / 100,
 					g: isGasActive ? 1 : 0,
 					b: isBrakeActive ? 1 : 0,
 					n: isNitroActive ? 1 : 0,
@@ -622,11 +656,7 @@
 				if (broadcast) {
 					broadcast.postMessage(packet);
 				}
-
-				requestAnimationFrame(loop);
-			}
-
-			requestAnimationFrame(loop);
+			}, 28);
 		}
 	</script>
 </body>
