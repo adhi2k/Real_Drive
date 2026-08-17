@@ -162,45 +162,47 @@
 			pointer-events: none;
 		}
 
-		/* Left Steering Buttons */
+		/* Top Left: BRAKE */
+		.btn-pedal-brake {
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.3), rgba(185, 28, 28, 0.6));
+			border-color: rgba(239, 68, 68, 0.6);
+		}
+		.btn-pedal-brake.active {
+			background: linear-gradient(180deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.98));
+			box-shadow: 0 0 35px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
+			transform: scale(0.97);
+		}
+
+		/* Bottom Left: LEFT */
 		.btn-steer-left {
-			background: linear-gradient(180deg, rgba(14, 165, 233, 0.28), rgba(2, 132, 199, 0.55));
-			border-color: rgba(14, 165, 233, 0.55);
+			background: linear-gradient(180deg, rgba(14, 165, 233, 0.3), rgba(2, 132, 199, 0.6));
+			border-color: rgba(14, 165, 233, 0.6);
 		}
 		.btn-steer-left.active {
 			background: linear-gradient(180deg, rgba(14, 165, 233, 0.8), rgba(2, 132, 199, 0.98));
 			box-shadow: 0 0 35px rgba(14, 165, 233, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
 			transform: scale(0.97);
 		}
-		.btn-steer-right {
-			background: linear-gradient(180deg, rgba(99, 102, 241, 0.28), rgba(79, 70, 229, 0.55));
-			border-color: rgba(99, 102, 241, 0.55);
-		}
-		.btn-steer-right.active {
-			background: linear-gradient(180deg, rgba(99, 102, 241, 0.8), rgba(79, 70, 229, 0.98));
-			box-shadow: 0 0 35px rgba(99, 102, 241, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
-			transform: scale(0.97);
-		}
 
-		/* Right Pedals */
+		/* Top Right: GAS */
 		.btn-pedal-gas {
-			flex: 1.4;
-			background: linear-gradient(180deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.55));
-			border-color: rgba(16, 185, 129, 0.55);
+			background: linear-gradient(180deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.6));
+			border-color: rgba(16, 185, 129, 0.6);
 		}
 		.btn-pedal-gas.active {
 			background: linear-gradient(180deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.98));
 			box-shadow: 0 0 35px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
 			transform: scale(0.97);
 		}
-		.btn-pedal-brake {
-			flex: 0.9;
-			background: linear-gradient(180deg, rgba(239, 68, 68, 0.28), rgba(185, 28, 28, 0.55));
-			border-color: rgba(239, 68, 68, 0.55);
+
+		/* Bottom Right: RIGHT */
+		.btn-steer-right {
+			background: linear-gradient(180deg, rgba(99, 102, 241, 0.3), rgba(79, 70, 229, 0.6));
+			border-color: rgba(99, 102, 241, 0.6);
 		}
-		.btn-pedal-brake.active {
-			background: linear-gradient(180deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.98));
-			box-shadow: 0 0 35px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
+		.btn-steer-right.active {
+			background: linear-gradient(180deg, rgba(99, 102, 241, 0.8), rgba(79, 70, 229, 0.98));
+			box-shadow: 0 0 35px rgba(99, 102, 241, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.4);
 			transform: scale(0.97);
 		}
 
@@ -212,7 +214,7 @@
 		}
 		.btn-sub {
 			font-size: 10px;
-			color: rgba(255, 255, 255, 0.7);
+			color: rgba(255, 255, 255, 0.75);
 			margin-top: 2px;
 			font-weight: 700;
 		}
@@ -383,15 +385,15 @@
 	<!-- Main Controller Interface -->
 	<div id="controller-ui">
 		
-		<!-- Left: Steering Controls -->
-		<div class="zone-col" id="left-steering-zone">
+		<!-- Left: BRAKE (Top) and LEFT (Bottom) -->
+		<div class="zone-col" id="left-control-zone">
+			<div id="btn-brake" class="touch-btn btn-pedal-brake">
+				<div class="btn-label">🛑 BRAKE</div>
+				<div class="btn-sub">REVERSE / DRIFT</div>
+			</div>
 			<div id="btn-steer-left" class="touch-btn btn-steer-left">
 				<div class="btn-label">⬅️ LEFT</div>
 				<div class="btn-sub">STEER LEFT</div>
-			</div>
-			<div id="btn-steer-right" class="touch-btn btn-steer-right">
-				<div class="btn-label">RIGHT ➡️</div>
-				<div class="btn-sub">STEER RIGHT</div>
 			</div>
 		</div>
 
@@ -443,15 +445,15 @@
 
 		</div>
 
-		<!-- Right: Gas & Brake Pedals -->
-		<div class="zone-col">
+		<!-- Right: GAS (Top) and RIGHT (Bottom) -->
+		<div class="zone-col" id="right-control-zone">
 			<div id="btn-gas" class="touch-btn btn-pedal-gas">
-				<div class="btn-label">⬆️ GAS</div>
+				<div class="btn-label">⚡ GAS</div>
 				<div class="btn-sub">ACCELERATE</div>
 			</div>
-			<div id="btn-brake" class="touch-btn btn-pedal-brake">
-				<div class="btn-label">⬇️ BRAKE</div>
-				<div class="btn-sub">REVERSE / DRIFT</div>
+			<div id="btn-steer-right" class="touch-btn btn-steer-right">
+				<div class="btn-label">RIGHT ➡️</div>
+				<div class="btn-sub">STEER RIGHT</div>
 			</div>
 		</div>
 
@@ -485,11 +487,10 @@
 		const wheelSvg = document.getElementById('steering-wheel');
 		const steerReadout = document.getElementById('steer-readout');
 
-		const btnSteerLeft = document.getElementById('btn-steer-left');
-		const btnSteerRight = document.getElementById('btn-steer-right');
-		const leftSteeringZone = document.getElementById('left-steering-zone');
-		const btnGas = document.getElementById('btn-gas');
 		const btnBrake = document.getElementById('btn-brake');
+		const btnSteerLeft = document.getElementById('btn-steer-left');
+		const btnGas = document.getElementById('btn-gas');
+		const btnSteerRight = document.getElementById('btn-steer-right');
 		const btnNitro = document.getElementById('btn-nitro');
 		const btnCalibrate = document.getElementById('btn-calibrate');
 
@@ -508,13 +509,15 @@
 			modeGyro.classList.toggle('active', mode === 'gyro');
 
 			if (mode === 'gyro') {
-				leftSteeringZone.style.opacity = '0.35';
+				btnSteerLeft.style.opacity = '0.35';
+				btnSteerRight.style.opacity = '0.35';
 				gyroWheelContainer.style.display = 'block';
 				steerBarContainer.style.display = 'none';
 				btnCalibrate.style.display = 'flex';
 				activateGyroSensors();
 			} else {
-				leftSteeringZone.style.opacity = '1.0';
+				btnSteerLeft.style.opacity = '1.0';
+				btnSteerRight.style.opacity = '1.0';
 				gyroWheelContainer.style.display = 'none';
 				steerBarContainer.style.display = 'block';
 				btnCalibrate.style.display = 'none';
@@ -566,6 +569,15 @@
 			}, { passive: false });
 		}
 
+		bindButton(btnBrake, () => {
+			isBrakeActive = true;
+			btnBrake.classList.add('active');
+			vibrate(15);
+		}, () => {
+			isBrakeActive = false;
+			btnBrake.classList.remove('active');
+		});
+
 		bindButton(btnSteerLeft, () => {
 			btnLeftActive = true;
 			btnSteerLeft.classList.add('active');
@@ -573,15 +585,6 @@
 		}, () => {
 			btnLeftActive = false;
 			btnSteerLeft.classList.remove('active');
-		});
-
-		bindButton(btnSteerRight, () => {
-			btnRightActive = true;
-			btnSteerRight.classList.add('active');
-			vibrate(15);
-		}, () => {
-			btnRightActive = false;
-			btnSteerRight.classList.remove('active');
 		});
 
 		bindButton(btnGas, () => {
@@ -593,13 +596,13 @@
 			btnGas.classList.remove('active');
 		});
 
-		bindButton(btnBrake, () => {
-			isBrakeActive = true;
-			btnBrake.classList.add('active');
+		bindButton(btnSteerRight, () => {
+			btnRightActive = true;
+			btnSteerRight.classList.add('active');
 			vibrate(15);
 		}, () => {
-			isBrakeActive = false;
-			btnBrake.classList.remove('active');
+			btnRightActive = false;
+			btnSteerRight.classList.remove('active');
 		});
 
 		bindButton(btnNitro, () => {
