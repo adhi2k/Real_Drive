@@ -837,7 +837,7 @@ export class GameUI {
 		basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
 		if (!basePath.startsWith('/')) basePath = '/' + basePath;
 
-		return `${proto}//${host}${port}${basePath}phone.html#${roomCode}`;
+		return `${proto}//${host}${port}${basePath}phone.html?v=${Date.now()}#${roomCode}`;
 
 	}
 

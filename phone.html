@@ -3,6 +3,9 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+	<meta http-equiv="Pragma" content="no-cache">
+	<meta http-equiv="Expires" content="0">
 	<title>RealDrive • Mobile Motion Controller</title>
 	<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 	<style>
@@ -308,7 +311,8 @@
 			
 			<div class="header-status" id="btn-header-code" title="Tap to change room code">
 				<span id="status-dot" class="status-dot"></span>
-				<span id="status-text">DISCONNECTED</span>
+				<span id="status-text">CONNECTING...</span>
+				<span id="ping-text" style="color: #64748b; margin-left: 2px;">--ms</span>
 			</div>
 
 			<!-- Virtual Steering Wheel SVG -->
@@ -362,6 +366,7 @@
 
 		const statusDot = document.getElementById('status-dot');
 		const statusText = document.getElementById('status-text');
+		const pingText = document.getElementById('ping-text');
 		const wheelSvg = document.getElementById('steering-wheel');
 		const steerReadout = document.getElementById('steer-readout');
 		const pedalGas = document.getElementById('pedal-gas');
@@ -510,19 +515,26 @@
 			inputRoomCode.focus();
 		});
 
-		// WebSocket MQTT Connection
+		// High-Speed WebSocket Connection
 		let broadcast = null;
 		let telemetryLoopActive = false;
+
+		const BROKERS = [
+			'wss://broker.hivemq.com:8884/mqtt',
+			'wss://broker.emqx.io:8084/mqtt'
+		];
+		let brokerIdx = 0;
 
 		function startConnection(roomId) {
 			if (!roomId) return;
 			roomId = roomId.toUpperCase().trim();
 
 			statusDot.className = 'status-dot';
-			statusText.textContent = `CONNECTING (${roomId})...`;
+			statusText.textContent = `CONNECTING...`;
 
 			const topic = `realdrive/game/${roomId}`;
 			const feedbackTopic = `realdrive/game/${roomId}/feedback`;
+			const pongTopic = `realdrive/game/${roomId}/pong`;
 
 			if (typeof BroadcastChannel !== 'undefined') {
 				broadcast = new BroadcastChannel('realdrive_channel_' + roomId);
@@ -532,12 +544,14 @@
 				try { mqttClient.end(true); } catch (e) {}
 			}
 
+			const brokerUrl = BROKERS[brokerIdx % BROKERS.length];
+
 			try {
-				mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+				mqttClient = mqtt.connect(brokerUrl, {
 					clientId: 'phone_' + Math.random().toString(16).substring(2, 8),
 					clean: true,
 					keepalive: 30,
-					reconnectPeriod: 1000
+					reconnectPeriod: 1500
 				});
 
 				mqttClient.on('connect', () => {
@@ -547,6 +561,7 @@
 					vibrate([60, 40, 60]);
 
 					mqttClient.subscribe(feedbackTopic, { qos: 0 });
+					mqttClient.subscribe(pongTopic, { qos: 0 });
 
 					if (!telemetryLoopActive) {
 						telemetryLoopActive = true;
@@ -558,19 +573,23 @@
 					try {
 						const data = JSON.parse(msg.toString());
 						if (data && data.vibrate) vibrate(data.vibrate);
+						if (data && data.t) {
+							const lat = Math.round(performance.now() - data.t);
+							pingText.textContent = `${lat}ms`;
+						}
 					} catch (e) {}
 				});
 
 				mqttClient.on('error', (err) => {
-					console.warn('MQTT error:', err);
+					brokerIdx++;
 					statusDot.className = 'status-dot';
-					statusText.textContent = `RECONNECTING...`;
+					statusText.textContent = `RETRYING...`;
 				});
 
 				mqttClient.on('close', () => {
 					isConnected = false;
 					statusDot.className = 'status-dot';
-					statusText.textContent = `RECONNECTING (${roomId})...`;
+					statusText.textContent = `RECONNECTING...`;
 				});
 
 			} catch (e) {
@@ -579,6 +598,8 @@
 		}
 
 		function startTelemetryLoop(topic) {
+			let lastPing = 0;
+
 			function loop() {
 				const now = performance.now();
 				const packet = {
@@ -591,6 +612,11 @@
 
 				if (mqttClient && mqttClient.connected) {
 					mqttClient.publish(topic, JSON.stringify(packet), { qos: 0 });
+
+					if (now - lastPing > 1000) {
+						lastPing = now;
+						mqttClient.publish(topic + '/ping', JSON.stringify({ t: now }), { qos: 0 });
+					}
 				}
 
 				if (broadcast) {
