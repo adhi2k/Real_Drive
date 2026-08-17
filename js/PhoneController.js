@@ -6,7 +6,7 @@ export class PhoneController {
 	constructor() {
 
 		this.roomCode = this.generateRoomCode();
-		this.hostPeerId = 'realdrive_' + this.roomCode;
+		this.hostPeerId = ('realdrive_' + this.roomCode).toLowerCase();
 		this.peer = null;
 		this.conn = null;
 		this.connected = false;
@@ -21,6 +21,18 @@ export class PhoneController {
 
 		this.onConnect = null;
 		this.onDisconnect = null;
+
+		// Local BroadcastChannel fallback for same-device split tabs
+		if ( typeof BroadcastChannel !== 'undefined' ) {
+
+			this.broadcast = new BroadcastChannel( 'realdrive_channel_' + this.roomCode );
+			this.broadcast.onmessage = ( e ) => {
+
+				if ( e.data ) this.handlePacket( e.data );
+
+			};
+
+		}
 
 	}
 
@@ -53,7 +65,24 @@ export class PhoneController {
 				config: {
 					iceServers: [
 						{ urls: 'stun:stun.l.google.com:19302' },
-						{ urls: 'stun:global.stun.twilio.com:3478' }
+						{ urls: 'stun:stun1.l.google.com:19302' },
+						{ urls: 'stun:stun2.l.google.com:19302' },
+						{ urls: 'stun:openrelay.metered.ca:80' },
+						{
+							urls: 'turn:openrelay.metered.ca:80',
+							username: 'openrelayproject',
+							credential: 'openrelayproject'
+						},
+						{
+							urls: 'turn:openrelay.metered.ca:443',
+							username: 'openrelayproject',
+							credential: 'openrelayproject'
+						},
+						{
+							urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+							username: 'openrelayproject',
+							credential: 'openrelayproject'
+						}
 					]
 				}
 			} );
@@ -68,31 +97,27 @@ export class PhoneController {
 
 				this.conn = connection;
 
-				this.conn.on( 'open', () => {
+				const onOpen = () => {
 
 					this.connected = true;
 					console.log( '📱 Mobile Phone Connected!' );
 					if ( this.onConnect ) this.onConnect( this.roomCode );
 
-				} );
+				};
+
+				if ( this.conn.open ) {
+
+					onOpen();
+
+				} else {
+
+					this.conn.on( 'open', onOpen );
+
+				}
 
 				this.conn.on( 'data', ( data ) => {
 
-					if ( ! data ) return;
-
-					if ( data.ping ) {
-
-						// Send pong for latency calculation
-						this.conn.send( { pong: true, t: data.t } );
-						return;
-
-					}
-
-					// Update target telemetry
-					if ( typeof data.s === 'number' ) this.targetSteer = data.s;
-					if ( typeof data.g === 'number' ) this.targetGas = data.g;
-					if ( typeof data.b === 'number' ) this.targetBrake = data.b;
-					this.nitro = !! data.n;
+					this.handlePacket( data );
 
 				} );
 
@@ -124,6 +149,31 @@ export class PhoneController {
 			console.warn( 'Failed to initialize PeerJS:', e );
 
 		}
+
+	}
+
+	handlePacket( data ) {
+
+		if ( ! data ) return;
+
+		if ( data.ping && this.conn && this.conn.open ) {
+
+			this.conn.send( { pong: true, t: data.t } );
+			return;
+
+		}
+
+		if ( ! this.connected ) {
+
+			this.connected = true;
+			if ( this.onConnect ) this.onConnect( this.roomCode );
+
+		}
+
+		if ( typeof data.s === 'number' ) this.targetSteer = data.s;
+		if ( typeof data.g === 'number' ) this.targetGas = data.g;
+		if ( typeof data.b === 'number' ) this.targetBrake = data.b;
+		this.nitro = !! data.n;
 
 	}
 
