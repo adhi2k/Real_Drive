@@ -399,7 +399,7 @@ async function init() {
 		requestAnimationFrame( animate );
 
 		timer.update();
-		const dt = Math.min( timer.getDelta(), 1 / 30 );
+		const dt = Math.min( timer.getDelta(), 0.05 );
 
 		const input = controls.update( dt );
 
@@ -423,7 +423,7 @@ async function init() {
 		const hasInput = input.touchActive || input.phoneActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
 
-		if ( ui ) ui.updateFPS( dt );
+		if ( ui ) ui.updateFPS();
 
 		renderer.render( scene, cam.camera );
 

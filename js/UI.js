@@ -1064,22 +1064,24 @@ export class GameUI {
 
 	}
 
-	updateFPS(dt) {
+	updateFPS() {
 
-		this._fpsTime = (this._fpsTime || 0) + dt;
+		const now = performance.now();
+		this._fpsLastTime = this._fpsLastTime || now;
 		this._fpsFrames = (this._fpsFrames || 0) + 1;
 
-		if (this._fpsTime >= 0.5) {
+		const deltaSec = (now - this._fpsLastTime) / 1000;
+		if (deltaSec >= 0.5) {
 
-			const fps = Math.round(this._fpsFrames / this._fpsTime);
+			const fps = Math.min(144, Math.round(this._fpsFrames / deltaSec));
 			const pill = document.getElementById('hud-fps-pill');
 			if (pill) {
 				pill.textContent = `${fps} FPS`;
 				pill.style.color = fps >= 50 ? '#5af168' : fps >= 30 ? '#ffea00' : '#ff4d4d';
 			}
 
-			this._fpsTime = 0;
 			this._fpsFrames = 0;
+			this._fpsLastTime = now;
 
 		}
 
