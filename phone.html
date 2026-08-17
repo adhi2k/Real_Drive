@@ -4,7 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<title>RealDrive • Mobile Motion Controller</title>
-	<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+	<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 	<style>
 		* {
 			box-sizing: border-box;
@@ -51,7 +51,7 @@
 			50% { transform: rotate(90deg); }
 		}
 
-		/* Start / Connect Modal Overlay */
+		/* Connect Modal Overlay */
 		#permission-overlay {
 			position: fixed;
 			inset: 0;
@@ -308,8 +308,7 @@
 			
 			<div class="header-status" id="btn-header-code" title="Tap to change room code">
 				<span id="status-dot" class="status-dot"></span>
-				<span id="status-text">CONNECTING...</span>
-				<span id="ping-text" style="color: #64748b; margin-left: 2px;">--ms</span>
+				<span id="status-text">DISCONNECTED</span>
 			</div>
 
 			<!-- Virtual Steering Wheel SVG -->
@@ -351,8 +350,7 @@
 	<script>
 		// State
 		let targetRoomId = '';
-		let peer = null;
-		let conn = null;
+		let mqttClient = null;
 		let isConnected = false;
 		let sensorsActive = false;
 
@@ -364,7 +362,6 @@
 
 		const statusDot = document.getElementById('status-dot');
 		const statusText = document.getElementById('status-text');
-		const pingText = document.getElementById('ping-text');
 		const wheelSvg = document.getElementById('steering-wheel');
 		const steerReadout = document.getElementById('steer-readout');
 		const pedalGas = document.getElementById('pedal-gas');
@@ -513,115 +510,75 @@
 			inputRoomCode.focus();
 		});
 
-		// WebRTC PeerJS Connection
+		// WebSocket MQTT Connection
+		let broadcast = null;
+		let telemetryLoopActive = false;
+
 		function startConnection(roomId) {
 			if (!roomId) return;
+			roomId = roomId.toUpperCase().trim();
 
 			statusDot.className = 'status-dot';
-			statusText.textContent = `JOINING ${roomId}...`;
+			statusText.textContent = `CONNECTING (${roomId})...`;
 
-			if (conn) {
-				try { conn.close(); } catch (e) {}
-				conn = null;
-			}
-
-			if (peer && !peer.destroyed) {
-				connectToHost(roomId);
-				return;
-			}
-
-			const peerId = 'phone_' + Math.random().toString(36).substring(2, 8);
-			peer = new Peer(peerId, {
-				debug: 1,
-				config: {
-					iceServers: [
-						{ urls: 'stun:stun.l.google.com:19302' },
-						{ urls: 'stun:stun1.l.google.com:19302' },
-						{ urls: 'stun:stun2.l.google.com:19302' },
-						{ urls: 'stun:openrelay.metered.ca:80' },
-						{
-							urls: 'turn:openrelay.metered.ca:80',
-							username: 'openrelayproject',
-							credential: 'openrelayproject'
-						},
-						{
-							urls: 'turn:openrelay.metered.ca:443',
-							username: 'openrelayproject',
-							credential: 'openrelayproject'
-						},
-						{
-							urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-							username: 'openrelayproject',
-							credential: 'openrelayproject'
-						}
-					]
-				}
-			});
-
-			peer.on('open', () => {
-				connectToHost(roomId);
-			});
-
-			peer.on('error', (err) => {
-				console.warn('Peer error:', err);
-				statusText.textContent = `RECONNECTING...`;
-				setTimeout(() => {
-					if (!isConnected) startConnection(roomId);
-				}, 2500);
-			});
-		}
-
-		let broadcast = null;
-
-		function connectToHost(roomId) {
-			if (!roomId || !peer) return;
-
-			const hostPeerId = ('realdrive_' + roomId).toLowerCase().trim();
+			const topic = `realdrive/game/${roomId}`;
+			const feedbackTopic = `realdrive/game/${roomId}/feedback`;
 
 			if (typeof BroadcastChannel !== 'undefined') {
-				broadcast = new BroadcastChannel('realdrive_channel_' + roomId.toUpperCase());
+				broadcast = new BroadcastChannel('realdrive_channel_' + roomId);
 			}
 
-			conn = peer.connect(hostPeerId, { reliable: false, serialization: 'json' });
-
-			const onOpen = () => {
-				isConnected = true;
-				statusDot.className = 'status-dot connected';
-				statusText.textContent = `CONNECTED (${roomId}) 🟢`;
-				vibrate([60, 40, 60]);
-
-				startTelemetryLoop();
-			};
-
-			if (conn.open) {
-				onOpen();
-			} else {
-				conn.on('open', onOpen);
+			if (mqttClient) {
+				try { mqttClient.end(true); } catch (e) {}
 			}
 
-			conn.on('close', () => {
-				isConnected = false;
-				statusDot.className = 'status-dot';
-				statusText.textContent = `DISCONNECTED (${roomId}) 🔴`;
-				setTimeout(() => {
-					if (!isConnected) connectToHost(roomId);
-				}, 2000);
-			});
+			try {
+				mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+					clientId: 'phone_' + Math.random().toString(16).substring(2, 8),
+					clean: true,
+					keepalive: 30,
+					reconnectPeriod: 1000
+				});
 
-			conn.on('data', (data) => {
-				if (data && data.pong) {
-					const latency = Math.round(performance.now() - data.t);
-					pingText.textContent = `${latency}ms`;
-				}
-				if (data && data.vibrate) {
-					vibrate(data.vibrate);
-				}
-			});
+				mqttClient.on('connect', () => {
+					isConnected = true;
+					statusDot.className = 'status-dot connected';
+					statusText.textContent = `CONNECTED (${roomId}) 🟢`;
+					vibrate([60, 40, 60]);
+
+					mqttClient.subscribe(feedbackTopic, { qos: 0 });
+
+					if (!telemetryLoopActive) {
+						telemetryLoopActive = true;
+						startTelemetryLoop(topic);
+					}
+				});
+
+				mqttClient.on('message', (t, msg) => {
+					try {
+						const data = JSON.parse(msg.toString());
+						if (data && data.vibrate) vibrate(data.vibrate);
+					} catch (e) {}
+				});
+
+				mqttClient.on('error', (err) => {
+					console.warn('MQTT error:', err);
+					statusDot.className = 'status-dot';
+					statusText.textContent = `RECONNECTING...`;
+				});
+
+				mqttClient.on('close', () => {
+					isConnected = false;
+					statusDot.className = 'status-dot';
+					statusText.textContent = `RECONNECTING (${roomId})...`;
+				});
+
+			} catch (e) {
+				console.warn('Connection failed:', e);
+			}
 		}
 
-		function startTelemetryLoop() {
-			let lastPing = 0;
-
+		function startTelemetryLoop(topic) {
 			function loop() {
 				const now = performance.now();
 				const packet = {
@@ -632,13 +589,8 @@
 					t: now
 				};
 
-				if (conn && conn.open) {
-					conn.send(packet);
-
-					if (now - lastPing > 1000) {
-						lastPing = now;
-						conn.send({ ping: true, t: now });
-					}
+				if (mqttClient && mqttClient.connected) {
+					mqttClient.publish(topic, JSON.stringify(packet), { qos: 0 });
 				}
 
 				if (broadcast) {

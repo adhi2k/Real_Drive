@@ -1,14 +1,13 @@
 /**
- * RealDrive: WebRTC Gyroscope & Accelerometer Phone Controller Receiver
+ * RealDrive: High-Speed WebSocket & WebRTC Phone Controller Receiver
  */
 export class PhoneController {
 
 	constructor() {
 
 		this.roomCode = this.generateRoomCode();
-		this.hostPeerId = ('realdrive_' + this.roomCode).toLowerCase();
-		this.peer = null;
-		this.conn = null;
+		this.mqttTopic = `realdrive/game/${this.roomCode}`;
+		this.client = null;
 		this.connected = false;
 
 		this.targetSteer = 0;
@@ -22,7 +21,7 @@ export class PhoneController {
 		this.onConnect = null;
 		this.onDisconnect = null;
 
-		// Local BroadcastChannel fallback for same-device split tabs
+		// Same-device BroadcastChannel support
 		if ( typeof BroadcastChannel !== 'undefined' ) {
 
 			this.broadcast = new BroadcastChannel( 'realdrive_channel_' + this.roomCode );
@@ -38,7 +37,7 @@ export class PhoneController {
 
 	generateRoomCode() {
 
-		const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+		const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 		let code = '';
 		for ( let i = 0; i < 4; i ++ ) {
 
@@ -51,102 +50,44 @@ export class PhoneController {
 
 	init() {
 
-		if ( typeof Peer === 'undefined' ) {
+		if ( typeof mqtt !== 'undefined' ) {
 
-			console.warn( 'PeerJS library not loaded.' );
-			return;
+			try {
 
-		}
+				this.client = mqtt.connect( 'wss://broker.hivemq.com:8884/mqtt', {
+					clientId: 'pc_' + Math.random().toString( 16 ).substring( 2, 8 ),
+					clean: true,
+					keepalive: 30,
+					reconnectPeriod: 1000
+				} );
 
-		try {
+				this.client.on( 'connect', () => {
 
-			this.peer = new Peer( this.hostPeerId, {
-				debug: 1,
-				config: {
-					iceServers: [
-						{ urls: 'stun:stun.l.google.com:19302' },
-						{ urls: 'stun:stun1.l.google.com:19302' },
-						{ urls: 'stun:stun2.l.google.com:19302' },
-						{ urls: 'stun:openrelay.metered.ca:80' },
-						{
-							urls: 'turn:openrelay.metered.ca:80',
-							username: 'openrelayproject',
-							credential: 'openrelayproject'
-						},
-						{
-							urls: 'turn:openrelay.metered.ca:443',
-							username: 'openrelayproject',
-							credential: 'openrelayproject'
-						},
-						{
-							urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-							username: 'openrelayproject',
-							credential: 'openrelayproject'
-						}
-					]
-				}
-			} );
-
-			this.peer.on( 'open', ( id ) => {
-
-				console.log( 'Phone Controller Host ready. Room Code:', this.roomCode );
-
-			} );
-
-			this.peer.on( 'connection', ( connection ) => {
-
-				this.conn = connection;
-
-				const onOpen = () => {
-
-					this.connected = true;
-					console.log( '📱 Mobile Phone Connected!' );
-					if ( this.onConnect ) this.onConnect( this.roomCode );
-
-				};
-
-				if ( this.conn.open ) {
-
-					onOpen();
-
-				} else {
-
-					this.conn.on( 'open', onOpen );
-
-				}
-
-				this.conn.on( 'data', ( data ) => {
-
-					this.handlePacket( data );
+					console.log( '✅ PC WebSocket connected. Room Code:', this.roomCode );
+					this.client.subscribe( this.mqttTopic, { qos: 0 } );
 
 				} );
 
-				this.conn.on( 'close', () => {
+				this.client.on( 'message', ( topic, message ) => {
 
-					this.connected = false;
-					this.resetInputs();
-					console.log( '📱 Mobile Phone Disconnected' );
-					if ( this.onDisconnect ) this.onDisconnect();
+					if ( topic === this.mqttTopic ) {
+
+						try {
+
+							const data = JSON.parse( message.toString() );
+							this.handlePacket( data );
+
+						} catch ( e ) {}
+
+					}
 
 				} );
 
-				this.conn.on( 'error', ( err ) => {
+			} catch ( e ) {
 
-					console.warn( 'Connection error:', err );
+				console.warn( 'MQTT error:', e );
 
-				} );
-
-			} );
-
-			this.peer.on( 'error', ( err ) => {
-
-				console.warn( 'Peer error:', err );
-
-			} );
-
-		} catch ( e ) {
-
-			console.warn( 'Failed to initialize PeerJS:', e );
+			}
 
 		}
 
@@ -156,16 +97,10 @@ export class PhoneController {
 
 		if ( ! data ) return;
 
-		if ( data.ping && this.conn && this.conn.open ) {
-
-			this.conn.send( { pong: true, t: data.t } );
-			return;
-
-		}
-
 		if ( ! this.connected ) {
 
 			this.connected = true;
+			console.log( '📱 Mobile Phone Connected!' );
 			if ( this.onConnect ) this.onConnect( this.roomCode );
 
 		}
@@ -173,15 +108,15 @@ export class PhoneController {
 		if ( typeof data.s === 'number' ) this.targetSteer = data.s;
 		if ( typeof data.g === 'number' ) this.targetGas = data.g;
 		if ( typeof data.b === 'number' ) this.targetBrake = data.b;
-		this.nitro = !! data.n;
+		this.nitro = ! ! data.n;
 
 	}
 
 	vibratePhone( ms = 30 ) {
 
-		if ( this.conn && this.conn.open ) {
+		if ( this.client && this.client.connected ) {
 
-			this.conn.send( { vibrate: ms } );
+			this.client.publish( `${this.mqttTopic}/feedback`, JSON.stringify( { vibrate: ms } ), { qos: 0 } );
 
 		}
 
