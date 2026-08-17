@@ -51,6 +51,67 @@
 			50% { transform: rotate(90deg); }
 		}
 
+		/* Start / Connect Modal Overlay */
+		#permission-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(9, 13, 22, 0.96);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			z-index: 1000;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 20px;
+			text-align: center;
+		}
+		.start-card {
+			width: 380px;
+			max-width: 90vw;
+			background: #0f172a;
+			border: 1px solid rgba(0, 247, 255, 0.3);
+			border-radius: 20px;
+			padding: 22px;
+			box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 247, 255, 0.15);
+		}
+		.input-code {
+			width: 100%;
+			padding: 12px;
+			font-size: 24px;
+			font-weight: 900;
+			letter-spacing: 6px;
+			text-align: center;
+			text-transform: uppercase;
+			color: #00f7ff;
+			background: rgba(255, 255, 255, 0.06);
+			border: 2px solid rgba(0, 247, 255, 0.4);
+			border-radius: 12px;
+			margin: 14px 0 16px 0;
+			outline: none;
+			box-sizing: border-box;
+		}
+		.input-code:focus {
+			border-color: #00f7ff;
+			box-shadow: 0 0 16px rgba(0, 247, 255, 0.4);
+		}
+		.btn-primary {
+			width: 100%;
+			padding: 14px 20px;
+			background: linear-gradient(135deg, #00f7ff, #0070f3);
+			color: #000;
+			font-size: 15px;
+			font-weight: 800;
+			border: none;
+			border-radius: 999px;
+			cursor: pointer;
+			box-shadow: 0 4px 20px rgba(0, 247, 255, 0.4);
+			transition: transform 0.1s;
+		}
+		.btn-primary:active {
+			transform: scale(0.97);
+		}
+
 		/* Main Dashboard Layout */
 		#controller-ui {
 			display: grid;
@@ -124,12 +185,17 @@
 			display: flex;
 			align-items: center;
 			gap: 8px;
-			background: rgba(255, 255, 255, 0.06);
-			padding: 5px 14px;
+			background: rgba(255, 255, 255, 0.08);
+			padding: 6px 16px;
 			border-radius: 999px;
-			border: 1px solid rgba(255, 255, 255, 0.1);
+			border: 1px solid rgba(255, 255, 255, 0.15);
 			font-size: 11px;
 			font-weight: 700;
+			cursor: pointer;
+			transition: background 0.15s;
+		}
+		.header-status:active {
+			background: rgba(255, 255, 255, 0.2);
 		}
 		.status-dot {
 			width: 8px;
@@ -200,31 +266,6 @@
 			box-shadow: 0 0 20px rgba(236, 72, 153, 0.8);
 			transform: scale(0.95);
 		}
-
-		/* Permissions Modal */
-		#permission-overlay {
-			position: fixed;
-			inset: 0;
-			background: rgba(9, 13, 22, 0.95);
-			z-index: 1000;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			padding: 24px;
-			text-align: center;
-		}
-		.btn-primary {
-			padding: 14px 28px;
-			background: linear-gradient(135deg, #00f7ff, #0070f3);
-			color: #000;
-			font-size: 16px;
-			font-weight: 800;
-			border: none;
-			border-radius: 999px;
-			margin-top: 20px;
-			box-shadow: 0 4px 20px rgba(0, 247, 255, 0.4);
-		}
 	</style>
 </head>
 <body>
@@ -233,17 +274,22 @@
 	<div id="portrait-warning">
 		<div class="rotate-icon">📱 ➔ 🔄</div>
 		<h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">ROTATE TO LANDSCAPE</h2>
-		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone like a real steering wheel with both hands.</p>
+		<p style="font-size: 13px; color: #94a3b8; max-width: 280px;">Hold your phone horizontally like a real steering wheel.</p>
 	</div>
 
-	<!-- iOS / Browser Sensor Permission Overlay -->
+	<!-- Connect Modal Overlay -->
 	<div id="permission-overlay">
-		<div style="font-size: 40px; margin-bottom: 12px;">🏎️ 📱</div>
-		<h2 style="font-size: 22px; font-weight: 800; margin-bottom: 8px;">Connect Motion Controller</h2>
-		<p style="font-size: 13px; color: #94a3b8; max-width: 320px;">
-			Allow motion sensors so your phone can act as a physical steering wheel.
-		</p>
-		<button id="btn-start-sensors" class="btn-primary">START CONTROLLER</button>
+		<div class="start-card">
+			<div style="font-size: 36px; margin-bottom: 8px;">🏎️ 📱</div>
+			<h2 style="font-size: 20px; font-weight: 800; color: #fff;">Connect to PC Game</h2>
+			<p style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+				Enter the 4-letter Code from your PC screen:
+			</p>
+			
+			<input id="input-room-code" class="input-code" type="text" maxlength="6" placeholder="CODE" autofocus />
+			
+			<button id="btn-start-sensors" class="btn-primary">START & CONNECT 🚀</button>
+		</div>
 	</div>
 
 	<!-- Main Controller Interface -->
@@ -260,10 +306,10 @@
 		<!-- Center: Telemetry & Wheel -->
 		<div class="center-col">
 			
-			<div class="header-status">
+			<div class="header-status" id="btn-header-code" title="Tap to change room code">
 				<span id="status-dot" class="status-dot"></span>
 				<span id="status-text">CONNECTING...</span>
-				<span id="ping-text" style="color: #64748b; margin-left: 4px;">--ms</span>
+				<span id="ping-text" style="color: #64748b; margin-left: 2px;">--ms</span>
 			</div>
 
 			<!-- Virtual Steering Wheel SVG -->
@@ -304,10 +350,11 @@
 
 	<script>
 		// State
-		let targetRoomId = window.location.hash ? window.location.hash.substring(1) : '';
+		let targetRoomId = '';
 		let peer = null;
 		let conn = null;
 		let isConnected = false;
+		let sensorsActive = false;
 
 		let zeroGamma = 0;
 		let currentSteer = 0;
@@ -325,10 +372,21 @@
 		const btnNitro = document.getElementById('btn-nitro');
 		const btnCalibrate = document.getElementById('btn-calibrate');
 		const permOverlay = document.getElementById('permission-overlay');
+		const inputRoomCode = document.getElementById('input-room-code');
+		const btnHeaderCode = document.getElementById('btn-header-code');
+
+		// Check hash code from URL
+		const hash = window.location.hash ? window.location.hash.substring(1).trim().toUpperCase() : '';
+		if (hash) {
+			inputRoomCode.value = hash;
+			targetRoomId = hash;
+		}
 
 		// Haptic Feedback
 		function vibrate(ms = 20) {
-			if (navigator.vibrate) navigator.vibrate(ms);
+			if (navigator.vibrate) {
+				try { navigator.vibrate(ms); } catch (e) {}
+			}
 		}
 
 		// Touch Controls for Pedals
@@ -346,7 +404,6 @@
 				onUp();
 			}, { passive: false });
 
-			// Mouse fallback
 			elem.addEventListener('mousedown', () => onDown());
 			elem.addEventListener('mouseup', () => onUp());
 			elem.addEventListener('mouseleave', () => onUp());
@@ -355,7 +412,7 @@
 		setupTouch(pedalGas, () => {
 			isGasActive = true;
 			pedalGas.classList.add('active');
-			vibrate(25);
+			vibrate(20);
 		}, () => {
 			isGasActive = false;
 			pedalGas.classList.remove('active');
@@ -364,7 +421,7 @@
 		setupTouch(pedalBrake, () => {
 			isBrakeActive = true;
 			pedalBrake.classList.add('active');
-			vibrate(25);
+			vibrate(20);
 		}, () => {
 			isBrakeActive = false;
 			pedalBrake.classList.remove('active');
@@ -373,7 +430,7 @@
 		setupTouch(btnNitro, () => {
 			isNitroActive = true;
 			btnNitro.classList.add('active');
-			vibrate(40);
+			vibrate(35);
 		}, () => {
 			isNitroActive = false;
 			btnNitro.classList.remove('active');
@@ -381,20 +438,15 @@
 
 		btnCalibrate.addEventListener('click', () => {
 			vibrate(30);
-			btnCalibrate.textContent = '✅ Calibrated!';
+			btnCalibrate.textContent = '✅ Zero Set!';
 			setTimeout(() => { btnCalibrate.textContent = '🎯 Calibrate'; }, 1000);
 		});
 
 		// Motion & Gyroscope Listener
 		function handleOrientation(event) {
-			// In landscape mode:
-			// Gamma represents left/right steering tilt (-90 to +90)
-			// Beta represents forward/backward pitch
 			let rawTilt = 0;
 			
-			// Detect orientation tilt
 			if (typeof event.gamma === 'number' && event.gamma !== null) {
-				// Depending on whether phone is tilted left or right in landscape:
 				if (Math.abs(window.orientation || 0) === 90) {
 					rawTilt = (window.orientation === 90) ? -event.beta : event.beta;
 				} else {
@@ -403,7 +455,7 @@
 			}
 
 			const tilt = rawTilt - zeroGamma;
-			const maxAngle = 38; // Max steering lock angle
+			const maxAngle = 38;
 			const deadzone = 2.5;
 
 			let normalized = 0;
@@ -414,44 +466,69 @@
 
 			currentSteer = normalized;
 
-			// Update Virtual Steering Wheel Graphic
 			const visualAngle = currentSteer * 90;
 			wheelSvg.style.transform = `rotate(${visualAngle}deg)`;
 			steerReadout.textContent = `${Math.round(currentSteer * 45)}°`;
 		}
 
-		btnCalibrate.addEventListener('click', () => {
-			// Recalibrate center tilt
-			zeroGamma = 0;
-		});
-
-		// Permissions
-		document.getElementById('btn-start-sensors').addEventListener('click', async () => {
+		// Request Motion Sensors
+		async function activateSensors() {
+			if (sensorsActive) return;
 			if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
 				try {
 					const permission = await DeviceOrientationEvent.requestPermission();
 					if (permission === 'granted') {
 						window.addEventListener('deviceorientation', handleOrientation, true);
+						sensorsActive = true;
 					}
 				} catch (e) {
-					console.warn('DeviceOrientation permission failed:', e);
+					console.warn('DeviceOrientation permission error:', e);
 				}
 			} else {
 				window.addEventListener('deviceorientation', handleOrientation, true);
+				sensorsActive = true;
+			}
+		}
+
+		// Start & Connect Button Handler
+		document.getElementById('btn-start-sensors').addEventListener('click', async () => {
+			const entered = inputRoomCode.value.trim().toUpperCase();
+			if (!entered) {
+				inputRoomCode.focus();
+				return;
 			}
 
+			targetRoomId = entered;
+			window.location.hash = targetRoomId;
+
+			await activateSensors();
 			permOverlay.style.display = 'none';
-			initPeer();
+
+			startConnection(targetRoomId);
+		});
+
+		// Header Tap to Change Room
+		btnHeaderCode.addEventListener('click', () => {
+			permOverlay.style.display = 'flex';
+			inputRoomCode.focus();
 		});
 
 		// WebRTC PeerJS Connection
-		function initPeer() {
-			if (!targetRoomId) {
-				targetRoomId = prompt('Enter 4-letter Game Code from PC screen (e.g. RACE-1234):') || '';
-				if (targetRoomId) targetRoomId = targetRoomId.trim().toUpperCase();
+		function startConnection(roomId) {
+			if (!roomId) return;
+
+			statusDot.className = 'status-dot';
+			statusText.textContent = `JOINING ${roomId}...`;
+
+			if (conn) {
+				try { conn.close(); } catch (e) {}
+				conn = null;
 			}
 
-			statusText.textContent = `JOINING ${targetRoomId}...`;
+			if (peer && !peer.destroyed) {
+				connectToHost(roomId);
+				return;
+			}
 
 			const peerId = 'phone_' + Math.random().toString(36).substring(2, 8);
 			peer = new Peer(peerId, {
@@ -465,36 +542,40 @@
 			});
 
 			peer.on('open', () => {
-				connectToHost(targetRoomId);
+				connectToHost(roomId);
 			});
 
 			peer.on('error', (err) => {
-				console.error('Peer error:', err);
-				statusText.textContent = 'RETRYING...';
-				setTimeout(() => connectToHost(targetRoomId), 2000);
+				console.warn('Peer error:', err);
+				statusText.textContent = `RECONNECTING...`;
+				setTimeout(() => {
+					if (!isConnected) startConnection(roomId);
+				}, 2500);
 			});
 		}
 
 		function connectToHost(roomId) {
-			if (!roomId) return;
+			if (!roomId || !peer) return;
+
 			const hostPeerId = 'realdrive_' + roomId;
 			conn = peer.connect(hostPeerId, { reliable: false, serialization: 'json' });
 
 			conn.on('open', () => {
 				isConnected = true;
-				statusDot.classList.add('connected');
-				statusText.textContent = 'CONNECTED 🟢';
-				vibrate([50, 50, 50]);
+				statusDot.className = 'status-dot connected';
+				statusText.textContent = `CONNECTED (${roomId}) 🟢`;
+				vibrate([60, 40, 60]);
 
-				// High-frequency 60 FPS Telemetry transmission loop
 				startTelemetryLoop();
 			});
 
 			conn.on('close', () => {
 				isConnected = false;
-				statusDot.classList.remove('connected');
-				statusText.textContent = 'DISCONNECTED 🔴';
-				setTimeout(() => connectToHost(roomId), 2000);
+				statusDot.className = 'status-dot';
+				statusText.textContent = `DISCONNECTED (${roomId}) 🔴`;
+				setTimeout(() => {
+					if (!isConnected) connectToHost(roomId);
+				}, 2000);
 			});
 
 			conn.on('data', (data) => {
@@ -515,7 +596,6 @@
 				if (conn && conn.open) {
 					const now = performance.now();
 					
-					// Send Telemetry packet
 					conn.send({
 						s: currentSteer,
 						g: isGasActive ? 1 : 0,
@@ -524,7 +604,6 @@
 						t: now
 					});
 
-					// Ping check every 1s
 					if (now - lastPing > 1000) {
 						lastPing = now;
 						conn.send({ ping: true, t: now });
